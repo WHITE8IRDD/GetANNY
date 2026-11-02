@@ -1,0 +1,47 @@
+name: Temporary existing-release relay
+on:
+  push:
+    branches: [arena/149c1a8a-getanny]
+permissions:
+  contents: read
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Relay existing verified setup without retaining an Actions artifact
+        env:
+          RELAY_BASE: https://8765-iabqkcwhsz4xs6dop1gfr.e2b.app
+          RELAY_TOKEN: 2G4IOHrULvqHwbqJRJ2eIgCZyaWBlc1QRP71aDhytlbHQnetAdEUw12IonDwOUeq
+          EXPECTED_SHA256: e4cd7bd7c3338029210b92ff9f67f6a298162e4e5b9cd20daee96e5bccefb6b8
+          EXPECTED_SIZE: "205823542"
+        run: |
+          set -euo pipefail
+          file=GetANNY-2.3.0-Setup.exe
+          curl --fail --location --retry 6 --retry-all-errors \
+            https://github.com/p4yy/GetANNY/releases/download/v2.3.0/$file \
+            --output "$file"
+          test "$(stat -c %s "$file")" = "$EXPECTED_SIZE"
+          echo "$EXPECTED_SHA256  $file" | sha256sum --check --strict
+          curl --fail --retry 5 "$RELAY_BASE/health/$RELAY_TOKEN"
+          mkdir chunks
+          split --bytes=3M --numeric-suffixes=0 --suffix-length=6 "$file" chunks/chunk.
+          count=0
+          for chunk in chunks/chunk.*; do
+            index=${chunk##*.}
+            digest=$(sha256sum "$chunk" | cut -d' ' -f1)
+            curl --fail --silent --show-error --retry 6 --retry-all-errors \
+              --request PUT \
+              --header "Content-Type: application/octet-stream" \
+              --header "X-Chunk-SHA256: $digest" \
+              --data-binary "@$chunk" \
+              "$RELAY_BASE/upload/$RELAY_TOKEN/$index"
+            count=$((count + 1))
+          done
+          printf '{"filename":"%s","size":%s,"sha256":"%s","count":%s}' \
+            "$file" "$EXPECTED_SIZE" "$EXPECTED_SHA256" "$count" > complete.json
+          curl --fail --silent --show-error --retry 6 --retry-all-errors \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --data-binary @complete.json \
+            "$RELAY_BASE/complete/$RELAY_TOKEN"
