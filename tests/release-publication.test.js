@@ -100,6 +100,31 @@ test("only the specifically prepared marked prerelease may receive assets", () =
     );
 });
 
+test("owner-requested 2.3.0 publication is pinned to one immutable main artifact", async () => {
+  const fs = require("node:fs/promises");
+  const workflow = await fs.readFile(
+    ".github/workflows/owner-release.yml",
+    "utf8",
+  );
+  const script = await fs.readFile(
+    "scripts/windows/publish-owner-build.ps1",
+    "utf8",
+  );
+  for (const value of [
+    "41525789468",
+    "0cc4045f011231d8e626eac1a4c5acd4926ac482",
+    "13179618560",
+    "sha256:38069c68382ef9a5c4b2b4fbeb6c33420ee7986e10ecdf827c0182313f803288",
+  ])
+    assert.match(workflow, new RegExp(value));
+  assert.match(workflow, /actions: read/);
+  assert.match(workflow, /contents: write/);
+  assert.match(script, /git diff --exit-code \$source HEAD -- src assets bin/);
+  assert.match(script, /verify-release-assets\.js/);
+  assert.match(script, /ownerRequestedSkippedLongChecks = \$true/);
+  assert.match(script, /release edit \$tag[\s\S]*--draft=false/);
+});
+
 test("draft release must contain every byte-verified asset before publication", async (t) => {
   const fs = require("node:fs/promises");
   const os = require("node:os");

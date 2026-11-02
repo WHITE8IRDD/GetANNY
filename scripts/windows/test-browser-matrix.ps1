@@ -65,7 +65,11 @@ foreach($id in @('helium','brave','vivaldi','opera','firefox','chrome')) {
   if($id -eq 'vivaldi' -and $report.failureCategory -eq 'browser-baseline' -and $report.baseline.passed -eq $false) {
    $matrix.Add(@{browser=$id;status='unverified';reason=('Normal browser baseline WITHOUT GetANNY could not be verified in this runner: '+$report.baseline.error);report="$id/browser-report.json"})
   }else{$matrix.Add(@{browser=$id;status=($code -eq 0 -and $report.passed ? 'passed' : 'failed');report="$id/browser-report.json"})}
- }else{$matrix.Add(@{browser=$id;status='failed';reason="Test exited $code before producing a report."})}
+ }else{
+  $reason="Test exited $code before producing a report."
+  if(Test-Path $runtimeLog){$reason += ' Runtime tail: '+((Get-Content $runtimeLog -Tail 12) -join ' | ')}
+  $matrix.Add(@{browser=$id;status='failed';reason=$reason})
+ }
 }
 $matrix.Add(@{browser='edge';status='unverified';reason='Additional browser; ordinary developer-mode/store installation needs individual manual verification.'})
 $chromium=Join-Path (Split-Path $Results -Parent) 'browser\browser-report.json'

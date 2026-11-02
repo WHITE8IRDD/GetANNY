@@ -60,31 +60,37 @@ const exec = promisify(execFile);
     failureCategory;
   const closeBrowser = async () => {
     if (externalBrowser) {
+      console.log("[vivaldi] closing headed browser process tree");
+      // Vivaldi's launcher PID and real browser PID differ. Browser.close and
+      // Playwright's CDP close can both wait forever after the headed process
+      // begins shutting down, so every graceful operation is bounded and the
+      // verified CDP browser process tree is always reaped afterward.
       if (externalBrowser.isConnected()) {
-        const session = await externalBrowser
-          .newBrowserCDPSession()
-          .catch(() => null);
+        const session = await Promise.race([
+          externalBrowser.newBrowserCDPSession().catch(() => null),
+          new Promise((resolve) => setTimeout(() => resolve(null), 2000)),
+        ]);
         if (session)
           await Promise.race([
             session.send("Browser.close").catch(() => {}),
-            new Promise((resolve) => setTimeout(resolve, 1000)),
+            new Promise((resolve) => setTimeout(resolve, 2000)),
           ]);
       }
-      if (
-        externalPid &&
-        (externalBrowser.isConnected() ||
-          (externalPid === externalProcess.pid &&
-            externalProcess.exitCode === null))
-      )
-        await exec("taskkill.exe", [
-          "/pid",
-          String(externalPid),
-          "/T",
-          "/F",
-        ]).catch(() => {});
-      await externalBrowser.close().catch(() => {});
+      for (const pid of new Set([externalPid, externalProcess?.pid])) {
+        if (pid)
+          await exec("taskkill.exe", ["/pid", String(pid), "/T", "/F"], {
+            timeout: 15000,
+          }).catch(() => {});
+      }
+      await Promise.race([
+        externalBrowser.close().catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
       externalBrowser = null;
+      externalProcess = null;
+      externalPid = null;
       browser = null;
+      console.log("[vivaldi] headed browser process tree closed");
     } else if (browser) {
       await browser.close();
       browser = null;
@@ -132,6 +138,9 @@ const exec = promisify(execFile);
       // Compare a normal baseline WITHOUT GetANNY before testing its extension;
       // a clean-browser startup failure is unverified, not an invented app pass.
       const openVivaldi = async (withExtension) => {
+        console.log(
+          `[vivaldi] launching ${withExtension ? "extension" : "clean baseline"} profile`,
+        );
         externalError = undefined;
         externalProcess = spawn(
           browserExecutable,
@@ -185,6 +194,9 @@ const exec = promisify(execFile);
             "Vivaldi did not expose a browser PID for safe test-only cleanup",
           );
         browser = externalBrowser.contexts()[0];
+        console.log(
+          `[vivaldi] ${withExtension ? "extension" : "clean baseline"} CDP ready`,
+        );
       };
       try {
         await openVivaldi(false);

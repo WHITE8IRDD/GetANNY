@@ -1,20 +1,28 @@
-name: Owner-requested official release without waiting for tests
+name: Owner-requested GetANNY 2.3.0 release from existing build
 on:
   push:
-    branches: [arena/42d3216b-getanny]
+    branches: [arena/86698f8a-getanny]
 permissions:
   actions: read
   contents: write
+concurrency:
+  group: getanny-owner-release-v2.3.0
+  cancel-in-progress: false
 jobs:
   publish:
     if: >-
-      ${{ contains(github.event.head_commit.message, 'GetANNY-Publish-NoTests: 41108662586') }}
+      ${{ contains(github.event.head_commit.message, 'GetANNY-Publish-NoTests: 41525789468') }}
+    name: Publish immutable existing Windows build with explicit test limitations
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
-      BUILD_RUN: '41108662586'
-      BUILD_SHA: '010b2e0f25e5aa32a9abb536055a41bcae5a99ff'
+      BUILD_RUN: "41525789468"
+      BUILD_SHA: "0cc4045f011231d8e626eac1a4c5acd4926ac482"
+      BUILD_BRANCH: main
+      BUILD_ARTIFACT_ID: "13179618560"
+      BUILD_ARTIFACT_DIGEST: "sha256:38069c68382ef9a5c4b2b4fbeb6c33420ee7986e10ecdf827c0182313f803288"
+      EVIDENCE_ARTIFACT_ID: "13180409366"
       REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v5
@@ -23,27 +31,26 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - name: Obtain the specifically identified build artifact
+      - name: Validate publication script syntax and immutable artifact provenance
         shell: pwsh
         run: |
-          trap { $msg = ($_ | Out-String).Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A'); Write-Output "::error title=Build artifact acquisition::$msg"; exit 1 }
-          $run = gh run view $env:BUILD_RUN --json headSha,headBranch | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $run.headSha -ne $env:BUILD_SHA -or $run.headBranch -ne 'arena/42d3216b-getanny') { throw 'Build source does not match the authorized commit and branch.' }
-          $deadline = (Get-Date).AddMinutes(15)
-          do {
-            $artifactData = gh api "repos/$env:REPO/actions/runs/$env:BUILD_RUN/artifacts" | ConvertFrom-Json
-            if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect the existing build artifacts.' }
-            $artifact = @($artifactData.artifacts | Where-Object { $_.name -eq 'GetANNY-unsigned-test-build' -and -not $_.expired })
-            if ($artifact.Count -eq 1) { break }
-            Start-Sleep -Seconds 15
-          } while ((Get-Date) -lt $deadline)
-          if ($artifact.Count -ne 1) { throw 'The requested build artifact was not produced before the deadline.' }
-          New-Item owner-build -ItemType Directory -Force | Out-Null
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'scripts/windows/publish-owner-build.ps1'),[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors.Count) { throw ($errors | Out-String) }
+          $run = gh api "repos/$env:REPO/actions/runs/$env:BUILD_RUN" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $run.id -ne [long]$env:BUILD_RUN -or $run.head_sha -cne $env:BUILD_SHA -or $run.head_branch -cne $env:BUILD_BRANCH) { throw 'Build source does not match the owner-authorized main commit and run.' }
+          $artifact = gh api "repos/$env:REPO/actions/artifacts/$env:BUILD_ARTIFACT_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $artifact.id -ne [long]$env:BUILD_ARTIFACT_ID -or $artifact.name -cne 'GetANNY-unsigned-test-build' -or $artifact.expired -or $artifact.digest -cne $env:BUILD_ARTIFACT_DIGEST -or $artifact.workflow_run.id -ne [long]$env:BUILD_RUN -or $artifact.workflow_run.head_sha -cne $env:BUILD_SHA -or $artifact.workflow_run.head_branch -cne $env:BUILD_BRANCH) { throw 'Existing build artifact provenance or digest mismatch.' }
+          $evidence = gh api "repos/$env:REPO/actions/artifacts/$env:EVIDENCE_ARTIFACT_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $evidence.name -cne 'windows-test-evidence' -or $evidence.expired -or $evidence.workflow_run.id -ne [long]$env:BUILD_RUN) { throw 'Windows evidence artifact provenance mismatch.' }
+      - name: Download the already-built installers, extensions and evidence
+        shell: pwsh
+        run: |
+          New-Item owner-build,owner-evidence -ItemType Directory -Force | Out-Null
           gh run download $env:BUILD_RUN -n GetANNY-unsigned-test-build -D owner-build
-          if ($LASTEXITCODE -ne 0) { throw 'Could not download the identified build artifact.' }
-      - name: Assemble and publish the owner-requested release
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the identified existing build artifact.' }
+          gh run download $env:BUILD_RUN -n windows-test-evidence -D owner-evidence
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the identified evidence artifact.' }
+      - name: Verify bytes, assemble checksums and publish the owner-requested release
         shell: pwsh
-        run: |
-          trap { $msg = ($_ | Out-String).Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A'); Write-Output "::error title=Official release publication::$msg"; exit 1 }
-          ./scripts/windows/publish-owner-build.ps1
+        run: ./scripts/windows/publish-owner-build.ps1
