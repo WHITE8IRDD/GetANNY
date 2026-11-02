@@ -39,8 +39,10 @@ async function submit(url, kind) {
   $("send").disabled = true;
   feedback("Waiting for desktop acknowledgement…");
   try {
+    const includeSiteCookies =
+      $("include-site-cookies").checked && kind === "file";
     let headers;
-    if ($("include-site-cookies").checked && kind === "file") {
+    if (includeSiteCookies) {
       const target = new URL(url);
       if (!/^https?:$/.test(target.protocol))
         throw new Error("Cookies are only available for HTTP or HTTPS links.");
@@ -52,7 +54,13 @@ async function submit(url, kind) {
             .join("; "),
         };
     }
-    const response = await send({ type: "download", url, kind, headers });
+    const response = await send({
+      type: "download",
+      url,
+      kind,
+      headers,
+      includeSiteCookies,
+    });
     feedback(
       response.action === "queued"
         ? "Download queued in GetANNY."
@@ -117,7 +125,9 @@ $("pair").onclick = async () => {
   $("browser").value =
     saved.browserId || globalThis.GETANNY_BROWSER || "chrome";
   $("pairing").value = saved.pairingKey || "";
-  $("include-site-cookies").checked = saved.includeSiteCookies === true;
+  // Default to enabled so cloud/private downloads work without a surprise
+  // failure. An explicit opt-out (false) is preserved across popup sessions.
+  $("include-site-cookies").checked = saved.includeSiteCookies !== false;
   const [tab] = await api.tabs.query({ active: true, currentWindow: true });
   const response = await send({ type: "detected", tabId: tab?.id });
   const items = response?.items || [];

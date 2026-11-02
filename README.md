@@ -31,19 +31,19 @@ GetANNY brings everyday downloads into one desktop workspace. Manage file transf
 
 ## Download GetANNY
 
-<sub>Current release: **2.2.5** · Windows 10/11 · 64-bit</sub>
+<sub>Current release: **2.2.6** · Windows 10/11 · 64-bit</sub>
 
-**[Open the official GetANNY 2.2.5 release page](https://github.com/WHITE8IRDD/GetANNY/releases/tag/v2.2.5)**
+**[Open the official GetANNY 2.2.6 release page](https://github.com/WHITE8IRDD/GetANNY/releases/tag/v2.2.6)**
 
 Choose one Windows package:
 
-| Package | Best for |
-| --- | --- |
-| [Setup (.exe)](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Setup.exe) | Recommended for most users |
-| [Windows Installer (.msi)](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Setup.msi) | Managed or scripted Windows installation |
-| [Portable (.exe)](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Portable.exe) | Running from a writable folder without a standard install |
+| Package                                                                                                            | Best for                                                  |
+| ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| [Setup (.exe)](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.6/GetANNY-2.2.6-Setup.exe)             | Recommended for most users                                |
+| [Windows Installer (.msi)](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.6/GetANNY-2.2.6-Setup.msi) | Managed or scripted Windows installation                  |
+| [Portable (.exe)](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.6/GetANNY-2.2.6-Portable.exe)       | Running from a writable folder without a standard install |
 
-Also available: [complete Windows bundle](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Windows-Bundle.zip) · [SHA-256 checksums](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.5/SHA256SUMS.txt).
+Also available: [complete Windows bundle](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.6/GetANNY-v2.2.6-FullBundle.zip) · [SHA-256 checksums](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.6/checksums.txt).
 
 **Important:** Use only one installer format. The current release binaries are unsigned. Windows may show a SmartScreen warning; review the release notes and verify the downloaded file against the published SHA-256 checksums before running it.
 
@@ -59,7 +59,7 @@ Media and torrent availability depends on the source and network. GetANNY does n
 
 ## Getting started
 
-1. Download one of the Windows packages from the [official release page](https://github.com/WHITE8IRDD/GetANNY/releases/tag/v2.2.5).
+1. Download one of the Windows packages from the [official release page](https://github.com/WHITE8IRDD/GetANNY/releases/tag/v2.2.6).
 2. Install GetANNY, or run the portable build from a writable folder.
 3. Open GetANNY and choose your download folder and preferences.
 4. To use browser integration, open the in-app browser setup guide and follow the instructions for your browser.
@@ -76,6 +76,7 @@ Download history and preferences are stored locally. Browser integration uses a 
 GetANNY is a Windows-first Electron application built with React, Vite and SQLite.
 
 **Requirements**
+
 - Node.js 22.22 or newer
 - npm
 - Windows build tools for native modules and Windows packaging
@@ -103,4 +104,3 @@ See the project documentation for [architecture](docs/ARCHITECTURE.md), [testing
 ## License
 
 GetANNY is released under the [Apache License 2.0](LICENSE). Third-party tools and bundled components retain their respective licenses; see [third-party notices](docs/THIRD_PARTY.md).
-

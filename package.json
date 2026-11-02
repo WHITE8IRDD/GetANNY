@@ -1,6 +1,6 @@
 {
   "name": "getanny",
-  "version": "2.2.4",
+  "version": "2.2.6",
   "description": "Windows download manager for files, media and browser downloads.",
   "main": "src/main/main.js",
   "author": "GetANNY Team",
@@ -16,6 +16,7 @@
     "build:win": "npm run build-extension && npm run build:renderer && electron-builder --win nsis msi portable --publish never",
     "build:win:store": "npm run build-extension && npm run build:renderer && python scripts/windows/generate-store-assets.py && electron-builder --win appx --x64 --publish never",
     "build:linux": "npm run build-extension && npm run build:renderer && electron-builder --linux --publish never",
+    "dist": "npm run build:win && npm run build:win:store",
     "test": "node --test --test-concurrency=1 tests/*.test.js src/main/**/*.test.js",
     "test:ui": "node scripts/test-ui.js",
     "format": "prettier --write src scripts tests docs README.md electron-builder.yml .github/workflows/*.yml",
@@ -54,10 +55,10 @@
   "overrides": {
     "ip": "npm:@webpod/ip@^0.6.1"
   },
-  "homepage": "https://github.com/p4yy/GetANNY",
+  "homepage": "https://github.com/WHITE8IRDD/GetANNY",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/p4yy/GetANNY.git"
+    "url": "git+https://github.com/WHITE8IRDD/GetANNY.git"
   },
   "keywords": [
     "download-manager",

@@ -1,3 +1,18 @@
+# GetANNY 2.2.6 — Cloud Downloads & Extension UI Update
+
+Cloud and private downloads now receive the browser session cookies they need by default, fixing Google Drive failures that previously saved an HTML sign-in page or an extensionless file named `identifier`.
+
+- Redesigned the extension cookie control with a clear label and privacy explanation. The preference is stored in `chrome.storage.local` immediately and survives popup closes and completed downloads.
+- Background browser downloads automatically request cookies for the target domain, while an explicit opt-out is respected.
+- Parses RFC 5987/6266 `filename*=` values, falls back to `Content-Type` for the extension, and never uses `identifier`, `uc` or `download` as a filename.
+- Detects Google Drive virus warnings and sign-in pages before a corrupt HTML file is saved, showing: “Authentication required: Please ensure site cookies are forwarded via the browser extension.”
+- Disables multi-segment downloads when `Accept-Ranges: bytes` is absent or the response is a dynamic ZIP stream, falling back to one connection.
+- Rebuilt Windows Setup EXE, MSI, portable EXE, Store AppX and all eight browser extension packages.
+
+The Windows binaries are unsigned. Verify the SHA-256 checksums published with the release before running an installer.
+
+---
+
 # GetANNY 2.2.5 — Updater configuration fix
 
 The Windows Setup EXE now includes the GitHub feed configuration required by the in-app updater and points to the current GetANNY repository. The packaged resource check fails the build if this configuration is missing or incorrect. MSI and portable installations remain outside the GitHub updater channel.

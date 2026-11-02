@@ -26,6 +26,27 @@ const validUrl = (value) => {
     return false;
   }
 };
+const hasHeader = (headers, name) =>
+  Object.keys(headers || {}).some((key) => key.toLowerCase() === name);
+async function withSiteCookies(url, headers = {}) {
+  if (hasHeader(headers, "cookie") || !api.cookies?.getAll) return headers;
+  try {
+    const saved = await api.storage.local.get(["includeSiteCookies"]);
+    // Site cookies are required for cloud/private files by default. The popup
+    // and interceptor pass an explicit false when the user opts out.
+    if (saved.includeSiteCookies === false) return headers;
+    const cookies = await api.cookies.getAll({ url });
+    if (!cookies.length) return headers;
+    return {
+      ...headers,
+      Cookie: cookies.map(({ name, value }) => `${name}=${value}`).join("; "),
+    };
+  } catch {
+    // Private windows, restricted stores and missing permission fall back to
+    // the browser copy instead of failing the handoff.
+    return headers;
+  }
+}
 const requestId = () => crypto.randomUUID();
 function update(next) {
   state = { ...state, ...next };
@@ -242,6 +263,18 @@ async function connect() {
   return result;
 }
 async function request(message) {
+  let outgoing = message;
+  if (
+    message.type === "download" &&
+    message.kind !== "media" &&
+    message.includeSiteCookies !== false
+  ) {
+    outgoing = {
+      ...message,
+      headers: await withSiteCookies(message.url, message.headers),
+    };
+  }
+  const { includeSiteCookies, ...payload } = outgoing;
   await connect();
   return new Promise((resolve, reject) => {
     const id = requestId();
@@ -255,7 +288,7 @@ async function request(message) {
     }, 15000);
     pending.set(id, { resolve, reject, timer });
     try {
-      sendRaw({ ...message, requestId: id });
+      sendRaw({ ...payload, requestId: id });
     } catch (error) {
       clearTimeout(timer);
       pending.delete(id);
@@ -353,6 +386,7 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
         kind: message.kind === "media" ? "media" : "file",
         filename: message.filename,
         headers: message.headers,
+        includeSiteCookies: message.includeSiteCookies,
       });
     }
     throw new Error("Unsupported extension action.");

@@ -59,6 +59,8 @@ publish:
     repo: GetANNY
     releaseType: release
 nsis:
+  # scripts/windows/installer.nsh creates resources/getanny-github-updates for
+  # installed NSIS builds only, which enables the GitHub updater feed.
   artifactName: "GetANNY Setup.${ext}"
   oneClick: false
   perMachine: false

@@ -21,7 +21,11 @@ export function useIPC() {
           useUIStore.getState().notify(`Downloaded ${data.filename}`);
       }),
       api.on("download:error", (data) => {
+        const requiresAuthentication =
+          data.code === "AUTH_REQUIRED" ||
+          /^Authentication required:/.test(data.error || "");
         if (
+          requiresAuthentication ||
           !["all", "active", "failed"].includes(useUIStore.getState().activeTab)
         )
           useUIStore.getState().notify(data.error, "error");

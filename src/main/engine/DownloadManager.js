@@ -293,12 +293,17 @@ class DownloadManager extends EventEmitter {
       this.flushProgress();
       this.burnSession(item);
       item.error = error.message;
+      item.errorCode = error.code || null;
       item.speed = 0;
       item.status = "failed";
       engine.failure = error;
       this.persist(item);
       this.onError(item.id, error);
-      this.emit("download-error", { id: item.id, error: error.message });
+      this.emit("download-error", {
+        id: item.id,
+        error: error.message,
+        ...(error.code ? { code: error.code } : {}),
+      });
       this.snapshot();
     });
     return engine;

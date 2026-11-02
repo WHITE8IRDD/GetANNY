@@ -19,7 +19,16 @@ class ChunkDownloader extends DownloadEngine {
   }
 
   desiredSegments() {
-    if (!this.resumable || this.totalSize < 2 * 1024 * 1024) return 1;
+    // Range support must be advertised explicitly, and dynamic ZIP streams
+    // (for example Google Drive folders) are assembled by the server without
+    // stable byte offsets. Both stay on one connection.
+    if (
+      !this.resumable ||
+      !this.acceptRanges ||
+      this.dynamicArchive ||
+      this.totalSize < 2 * 1024 * 1024
+    )
+      return 1;
     // Avoid connection setup dominating small files. Large files can still use
     // every configured connection; the default target is roughly 4 MiB/range.
     return Math.min(
@@ -29,7 +38,7 @@ class ChunkDownloader extends DownloadEngine {
   }
 
   async transfer() {
-    if (this.segmentCount === 1) return super.transfer();
+    if (!this.resumable || this.segmentCount <= 1) return super.transfer();
     const chunkSize = Math.ceil(this.totalSize / this.segmentCount);
     const parts = Array.from({ length: this.segmentCount }, (_, index) => ({
       start: index * chunkSize,

@@ -1,3 +1,15 @@
+# GetANNY 2.2.6 release status
+
+- Fixes Google Drive and other cloud/private downloads that failed with extensionless `identifier`/`uc` files or saved authentication pages.
+- The browser extension now includes site cookies for cloud/private downloads by default, persists the checkbox choice in `chrome.storage.local`, and forwards cookies automatically for background download handoffs.
+- The popup explains the privacy boundary: session cookies go only to the local GetANNY app, are held in memory for the transfer, and are excluded from history, renderer events and logs.
+- Adds RFC 5987/6266 `filename*` parsing, MIME-based filename fallback, HTML sign-in/virus-page detection, and single-connection fallback when `Accept-Ranges: bytes` is missing or a dynamic ZIP stream is detected.
+- Windows x64 Setup EXE, MSI, portable EXE, Store AppX and all eight browser-extension ZIPs were built locally for 2.2.6.
+- Published as an official GitHub release with a SHA-256 `checksums.txt`.
+- Windows binaries are unsigned. Verify the published SHA-256 checksums before running installers.
+
+---
+
 # GetANNY 2.2.5 release status
 
 - Fixes the 2.2.4 Setup EXE update-check error by packaging `resources/app-update.yml` for the GitHub update feed.
@@ -7,6 +19,7 @@
 - Windows binaries are unsigned. Verify the published SHA-256 checksums before running installers.
 
 ---
+
 # GetANNY 2.2.1 release status
 
 - Source commit: recorded in `Documentation/RELEASE_INFO.md` in the Windows bundle and linked Git tag.
@@ -17,4 +30,3 @@
 - GitHub Actions Windows/browser verification is intentionally skipped at the owner's request. This release is not represented as passing those remote gates or as manually certified.
 - Windows binaries are unsigned. Verify the supplied SHA-256 checksums and review `Documentation/START_HERE.md` before installation.
 - Torrent drag and drop and close-to-tray behavior were not manually retested in the installed package.
-

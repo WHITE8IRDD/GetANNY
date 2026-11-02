@@ -11,9 +11,31 @@ const {
   sanitizeFilename,
   getFilenameFromURL,
   getFilenameFromHeaders,
+  withMimeExtension,
+  isHtmlContentType,
+  isHtmlFilename,
+  isAuthenticationPage,
+  isDynamicArchive,
+  authenticationRequiredError,
   validateHeaders,
   validateUrl,
 } = require("./utils");
+
+async function readResponseHead(response, limit = 64 * 1024) {
+  const chunks = [];
+  let size = 0;
+  try {
+    for await (const chunk of response) {
+      chunks.push(chunk);
+      size += chunk.length;
+      if (size >= limit) break;
+    }
+  } catch {
+    // The classification only needs the prefix; a truncated or reset body is
+    // still enough to distinguish an HTML challenge from binary content.
+  }
+  return Buffer.concat(chunks).subarray(0, limit).toString("utf8");
+}
 
 class DownloadEngine extends EventEmitter {
   constructor(options = {}) {
@@ -54,14 +76,22 @@ class DownloadEngine extends EventEmitter {
     this.headers = rangeProbe.headers;
     delete this.headers.Range;
     const headers = response.headers;
-    const range = parseRange(headers["content-range"]);
     const status = response.statusCode;
+    const contentType = headers["content-type"];
+    const htmlResponse = isHtmlContentType(contentType);
+    const htmlHead = htmlResponse ? await readResponseHead(response) : "";
     response.destroy();
-    if (![200, 204, 206, 416].includes(status))
+    if (![200, 204, 206, 416].includes(status)) {
+      // Cloud storage commonly returns a sign-in or quota page with 401/403
+      // instead of a machine-readable error. Surface the actionable message.
+      if (htmlResponse && [401, 403].includes(status))
+        throw authenticationRequiredError();
       throw httpError(
         status,
         "Unable to access this file. A page URL may need the media extractor instead.",
       );
+    }
+    const range = parseRange(headers["content-range"]);
     if (status === 206 && (!range || range.start !== 0 || range.end !== 0))
       throw new Error(
         "The server returned an invalid range capability response.",
@@ -73,18 +103,40 @@ class DownloadEngine extends EventEmitter {
       (status === 416 ? 0 : Number(headers["content-length"]) || 0);
     if (!Number.isSafeInteger(totalSize) || totalSize < 0)
       throw new Error("The server reported an unsupported file size.");
-    const filename =
+    let filename =
       this.filenameExplicit && this.filename
         ? this.filename
         : getFilenameFromHeaders(headers["content-disposition"]) ||
           getFilenameFromURL(finalUrl) ||
           "download";
+    // A binary download that resolves to an HTML document is an authentication
+    // or virus-warning page, not the requested file. Never save it as .zip,
+    // .bin or an extensionless "identifier". Check before the Content-Type
+    // fallback so text/html cannot legitimize the challenge page itself.
+    if (
+      status === 200 &&
+      htmlResponse &&
+      !isHtmlFilename(filename) &&
+      (isAuthenticationPage(htmlHead) ||
+        /<(?:!doctype\s+html|html|head|body|form)\b/i.test(htmlHead))
+    )
+      throw authenticationRequiredError();
+    filename = withMimeExtension(filename, contentType);
+    const acceptRanges = /(?:^|,)\s*bytes\s*(?:,|$)/i.test(
+      headers["accept-ranges"] || "",
+    );
+    const dynamicArchive = isDynamicArchive(finalUrl, headers);
     const etag =
       headers.etag && !headers.etag.startsWith("W/") ? headers.etag : null;
     const info = {
       url: finalUrl,
       totalSize,
-      resumable: status === 206 && totalSize > 0,
+      // A 206 proves ranges work, but the advertised capability and dynamic
+      // archive checks keep Google Drive folder ZIPs on one connection.
+      resumable:
+        status === 206 && totalSize > 0 && acceptRanges && !dynamicArchive,
+      acceptRanges,
+      dynamicArchive,
       filename: sanitizeFilename(filename),
       mimeType: headers["content-type"]?.split(";")[0] || null,
       etag,
@@ -350,10 +402,7 @@ class DownloadEngine extends EventEmitter {
     }
     // Stage inside the destination, then rename so a partial copy is never
     // presented as the finished file.
-    const staged = path.join(
-      this.savePath,
-      `.getanny-${this.id}.publishing`,
-    );
+    const staged = path.join(this.savePath, `.getanny-${this.id}.publishing`);
     try {
       await fsp.copyFile(this.partialPath, staged);
       await fsp.rename(staged, target);

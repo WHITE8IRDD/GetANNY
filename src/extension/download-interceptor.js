@@ -126,10 +126,10 @@
       const cookiePreference = await this.api.storage.local.get([
         "includeSiteCookies",
       ]);
-      if (
-        cookiePreference.includeSiteCookies === true &&
-        this.api.cookies?.getAll
-      ) {
+      // Cloud/private downloads need this by default. Only an explicit opt-out
+      // disables forwarding, and the choice persists between popup sessions.
+      const siteCookies = cookiePreference.includeSiteCookies !== false;
+      if (siteCookies && this.api.cookies?.getAll) {
         try {
           // Firefox containers and other cookie stores must not silently use
           // a different account's default-store cookies.
@@ -145,7 +145,7 @@
           // The browser remains the fallback if the desktop rejects the request.
         }
       }
-      return headers;
+      return { headers, siteCookies };
     }
 
     async created(item) {
@@ -171,7 +171,7 @@
         await this.save();
         await this.pause(entry);
         await this.save();
-        const headers = await this.metadata(item, url);
+        const { headers, siteCookies } = await this.metadata(item, url);
         if (entry.connectionLost)
           throw new Error("Desktop disconnected before the handoff began.");
         entry.requestStarted = true;
@@ -182,6 +182,7 @@
           url,
           filename: filename(item, url),
           headers,
+          includeSiteCookies: siteCookies,
           mimeType: item.mime || item.mimeType || null,
           intercepted: true,
           transferId: entry.transferId,

@@ -38,30 +38,100 @@ body {
 .cookie-optin {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
-  margin-top: 12px;
-  padding: 10px;
+  gap: 11px;
+  margin-top: 14px;
+  padding: 13px 12px;
   border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel);
+  border-radius: 10px;
+  background: linear-gradient(145deg, var(--raised), var(--panel) 64%);
+  cursor: default;
+}
+.cookie-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-top: 1px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input);
+  color: var(--secondary);
+}
+.cookie-icon svg {
+  width: 17px;
+  height: 17px;
+}
+.cookie-copy {
+  flex: 1;
+  min-width: 0;
+}
+.cookie-title {
+  display: block;
+  margin: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
   cursor: pointer;
 }
-.cookie-optin input {
-  margin: 3px 0 0;
-  accent-color: var(--accent);
-}
-.cookie-optin strong,
-.cookie-optin small {
-  display: block;
-}
-.cookie-optin strong {
-  font-size: 11px;
-}
-.cookie-optin small {
-  margin-top: 3px;
+.cookie-privacy {
+  margin: 4px 0 0;
   color: var(--muted);
   font-size: 10px;
-  line-height: 1.5;
+  line-height: 1.55;
+}
+.cookie-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 20px;
+  margin: 2px 0 0;
+  cursor: pointer;
+}
+.cookie-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+}
+.cookie-slider {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--input);
+  transition:
+    background 0.16s,
+    border-color 0.16s;
+}
+.cookie-slider::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--secondary);
+  transition:
+    transform 0.16s,
+    background 0.16s;
+}
+.cookie-switch input:checked + .cookie-slider {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.cookie-switch input:checked + .cookie-slider::after {
+  background: var(--accent-text);
+  transform: translateX(14px);
+}
+.cookie-switch input:focus-visible + .cookie-slider {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 header {
   display: flex;

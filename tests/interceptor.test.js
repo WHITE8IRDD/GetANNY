@@ -25,7 +25,7 @@ function fixture(options = {}) {
     storage: {
       local: {
         get: async () => ({
-          includeSiteCookies: options.includeSiteCookies === true,
+          includeSiteCookies: options.includeSiteCookies !== false,
         }),
       },
       ...(options.session ? { session: options.session } : {}),
@@ -107,7 +107,8 @@ test("ordinary browser handoff covers documents, archives, images, media and unk
     assert.equal(request.filename, name);
     assert.equal(request.kind, "file");
     assert.equal(request.intercepted, true);
-    assert.equal(request.headers.Cookie, undefined);
+    assert.equal(request.headers.Cookie, "session=abc");
+    assert.equal(request.includeSiteCookies, true);
     assert.equal(request.headers.Referer, "https://example.test/page");
     assert.equal(request.headers["User-Agent"], "Browser Test");
     assert.deepEqual(
@@ -262,7 +263,7 @@ test("browser download IDs reused across profiles or restarts get distinct hando
   assert.notEqual(a, "1");
 });
 
-test("cookie lookup is opt-in and uses the download's browser cookie store", async () => {
+test("cookie lookup is enabled by default, uses the download's browser cookie store, and honors an explicit opt-out", async () => {
   const f = fixture({ includeSiteCookies: true });
   await f.interceptor.created({
     ...item(21),
@@ -271,6 +272,15 @@ test("cookie lookup is opt-in and uses the download's browser cookie store", asy
   const query = f.calls.find((call) => call.name === "cookies").value;
   assert.equal(query.storeId, "firefox-container-2");
   assert.equal(query.url, "https://cdn.example.test/file.bin");
+  const optedOut = fixture({ includeSiteCookies: false });
+  await optedOut.interceptor.created(item(22));
+  const request = optedOut.calls.find((call) => call.name === "request").value;
+  assert.equal(request.headers.Cookie, undefined);
+  assert.equal(request.includeSiteCookies, false);
+  assert.equal(
+    optedOut.calls.some((call) => call.name === "cookies"),
+    false,
+  );
 });
 
 function sessionStorage(initial = []) {
