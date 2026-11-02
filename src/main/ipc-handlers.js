@@ -144,7 +144,11 @@ function createHandlers({ services: s, desktop }) {
         return s.browserDetector.locate(id, result.filePaths[0]);
       return null;
     },
-    "browser:pairing-key": () => s.identity.token,
+    "browser:pairing-key": (browserId) => {
+      const token = s.identity.clientTokens[browserId];
+      if (!token) throw new Error("Choose a supported browser first.");
+      return token;
+    },
     "browser:ack-request": (id) => s.ackBrowserRequest(id),
     "browser:commit-request": ({ id, downloadId }) =>
       s.commitBrowserRequest(id, downloadId),

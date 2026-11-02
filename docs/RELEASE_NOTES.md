@@ -1,4 +1,20 @@
-# GetANNY 2.2.6 — Cloud Downloads & Extension UI Update
+# GetANNY 2.3.0 — Reliable direct browser bridge
+
+Browser integration now uses an authenticated loopback WebSocket as its primary transport across Helium, Chrome, Chromium, Brave, Firefox, Vivaldi, Opera and Edge. Native Messaging remains a secure cold-start and first-connection bootstrap rather than a fragile prerequisite.
+
+- Provisions every supported browser during EXE/MSI setup without depending on executable detection.
+- Uses distinct 256-bit credentials for native bootstrap, manual recovery and each browser; generic release ZIPs contain no secret.
+- Connects prepared extensions directly, persists credentials delivered through authenticated native bootstrap, and reconnects with bounded exponential backoff after desktop/browser worker restarts.
+- Separates installer setup from SQLite, download engines, windows and the fixed bridge port; packaged startup repairs stale version/path or missing prepared files.
+- Registers and removes native-host keys in both 64-bit and 32-bit Windows registry views and reports partial failures honestly.
+- Hardens loopback Host/origin checks, browser/credential binding, payload/header limits and unsafe forwarded-header rejection.
+- Adds installer, identity migration/race, registry-view, native-bootstrap, direct-authentication, restart-recovery and secret-free-package coverage.
+
+See `BROWSER_INTEGRATION_V2.md` for the verified source-level root cause, architecture comparison, security model and validation limits. Browser approval remains explicit; permanent Firefox installation still requires Mozilla signing.
+
+---
+
+# GetANNY 2.2.6 — Cloud Downloads & Extension UI Update (unpublished source revision)
 
 Cloud and private downloads now receive the browser session cookies they need by default, fixing Google Drive failures that previously saved an HTML sign-in page or an extensionless file named `identifier`.
 
@@ -9,7 +25,7 @@ Cloud and private downloads now receive the browser session cookies they need by
 - Disables multi-segment downloads when `Accept-Ranges: bytes` is absent or the response is a dynamic ZIP stream, falling back to one connection.
 - Rebuilt Windows Setup EXE, MSI, portable EXE, Store AppX and all eight browser extension packages.
 
-The Windows binaries are unsigned. Verify the SHA-256 checksums published with the release before running an installer.
+No canonical `v2.2.6` GitHub release was published. These source changes are included in 2.3.0.
 
 ---
 

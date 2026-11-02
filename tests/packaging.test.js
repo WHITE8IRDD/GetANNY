@@ -258,7 +258,7 @@ test("portable packaging and the distribution bundle are gated by a packaged por
 
 test("Windows packages carry the GitHub updater feed metadata used by the NSIS channel", async () => {
   const config = await fs.readFile("electron-builder.yml", "utf8");
-  assert.match(config, /owner: WHITE8IRDD\s+repo: GetANNY\s+releaseType: release/);
+  assert.match(config, /owner: p4yy\s+repo: GetANNY\s+releaseType: release/);
   assert.doesNotMatch(config, /^publish: null\s*$/m);
   assert.match(config, /getanny-github-updates/);
 });

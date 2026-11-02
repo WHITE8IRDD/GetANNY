@@ -30,7 +30,12 @@ function themePayload(id) {
     themes.find((item) => item.id === id) ||
     themes.find((item) => item.id === "nord") ||
     themes[0];
-  return { id: theme.id, name: theme.name, mode: theme.mode, colors: theme.colors };
+  return {
+    id: theme.id,
+    name: theme.name,
+    mode: theme.mode,
+    colors: theme.colors,
+  };
 }
 
 async function createServices({
@@ -94,6 +99,8 @@ async function createServices({
   const extensionInstaller = new ExtensionInstaller({
     userDataPath,
     extensionPath,
+    clientTokens: identity.clientTokens,
+    port,
   });
   const pendingBrowserRequests = [];
   const recentBrowserRequests = new Map();
@@ -187,7 +194,9 @@ async function createServices({
   }
   wsServer = new WebSocketServer({
     port,
-    token: identity.token,
+    nativeToken: identity.nativeToken,
+    recoveryToken: identity.recoveryToken,
+    clientTokens: identity.clientTokens,
     enabled: settings.get("browserIntegrationEnabled"),
     theme: themePayload(settings.get("theme")),
     onDownloadRequest: processBrowserRequest,
@@ -235,7 +244,7 @@ async function createServices({
     appPath,
     isPackaged,
     binPath,
-    token: identity.token,
+    token: identity.nativeToken,
     port: wsServer.status().port,
   });
   if (!startTransfers) manager.stopped = true;
@@ -306,6 +315,7 @@ async function createServices({
         return {
           ...browser,
           prepared: prepared.prepared,
+          directProvisioned: prepared.directProvisioned,
           packagePath: prepared.path,
           registered: host.registered,
           nativeManifestPath: host.path,
@@ -322,19 +332,35 @@ async function createServices({
   async function prepareBrowser(id, onProgress = async () => {}) {
     if (isPortable)
       throw new Error(
-        "The portable launcher uses temporary files and cannot register a persistent native host. Use the installed app, or load the extension and pair its WebSocket while GetANNY is running.",
+        "The portable launcher uses temporary files and cannot keep a stable provisioned extension credential. Use the installed app, or load a release extension and enter its recovery key while GetANNY is running.",
       );
     await onProgress("extension-prepare", { browserId: id });
     const extension = await extensionInstaller.install(id);
     await onProgress("native-register", { browserId: id });
-    const host = await nativeMessagingHost.register(id);
-    return {
-      ...extension,
-      registered: host.registered,
-      nativeManifestPath: host.path,
-      hostPath: host.hostPath,
-      instructions: extension.instructions,
-    };
+    try {
+      const host = await nativeMessagingHost.register(id);
+      return {
+        ...extension,
+        registered: host.registered,
+        nativeManifestPath: host.path,
+        hostPath: host.hostPath,
+        instructions: extension.instructions,
+      };
+    } catch (error) {
+      // The provisioned WebSocket is the primary transport. Native messaging
+      // remains a cold-start/bootstrap adapter, so its failure must be visible
+      // without invalidating a working direct package.
+      await onProgress("native-warning", {
+        browserId: id,
+        error: error.message,
+      });
+      return {
+        ...extension,
+        registered: false,
+        nativeError: error.message,
+        instructions: extension.instructions,
+      };
+    }
   }
   async function setupInstalledBrowsers(onProgress = async () => {}) {
     const result = [];
@@ -345,16 +371,25 @@ async function createServices({
         .filter((browser) => browser.installed)
         .map((browser) => browser.id),
     });
+    // Registration used to be gated on executable detection. A missed custom
+    // path therefore made both installers report success while writing no host
+    // or usable fallback for that browser. Preparing all supported adapters is
+    // deterministic, harmless for absent browsers and also covers browsers
+    // installed after GetANNY.
     for (const browser of detected) {
-      if (!browser.installed) continue;
       try {
         result.push({
           browserId: browser.id,
+          browserDetected: browser.installed,
           ...(await prepareBrowser(browser.id, onProgress)),
         });
         await onProgress("browser-prepared", { browserId: browser.id });
       } catch (error) {
-        result.push({ browserId: browser.id, error: error.message });
+        result.push({
+          browserId: browser.id,
+          browserDetected: browser.installed,
+          error: error.message,
+        });
         await onProgress("browser-error", {
           browserId: browser.id,
           error: error.message,

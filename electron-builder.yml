@@ -55,7 +55,7 @@ win:
   requestedExecutionLevel: asInvoker
 publish:
   - provider: github
-    owner: WHITE8IRDD
+    owner: p4yy
     repo: GetANNY
     releaseType: release
 nsis:

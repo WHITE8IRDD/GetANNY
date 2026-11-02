@@ -1,6 +1,6 @@
 {
   "name": "getanny",
-  "version": "2.2.6",
+  "version": "2.3.0",
   "description": "Windows download manager for files, media and browser downloads.",
   "main": "src/main/main.js",
   "author": "GetANNY Team",
@@ -55,10 +55,10 @@
   "overrides": {
     "ip": "npm:@webpod/ip@^0.6.1"
   },
-  "homepage": "https://github.com/WHITE8IRDD/GetANNY",
+  "homepage": "https://github.com/p4yy/GetANNY",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WHITE8IRDD/GetANNY.git"
+    "url": "git+https://github.com/p4yy/GetANNY.git"
   },
   "keywords": [
     "download-manager",

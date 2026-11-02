@@ -15,6 +15,7 @@ const browsers = [
     win: [
       "%LOCALAPPDATA%/imput/Helium/Application/chrome.exe",
       "%PROGRAMFILES%/imput/Helium/Application/chrome.exe",
+      "%PROGRAMFILES(X86)%/imput/Helium/Application/chrome.exe",
     ],
   },
   {
@@ -44,6 +45,7 @@ const browsers = [
     win: [
       "%LOCALAPPDATA%/Chromium/Application/chrome.exe",
       "%PROGRAMFILES%/Chromium/Application/chrome.exe",
+      "%PROGRAMFILES(X86)%/Chromium/Application/chrome.exe",
     ],
   },
   {
@@ -51,12 +53,13 @@ const browsers = [
     name: "Brave",
     family: "chromium",
     page: "brave://extensions",
-    registry: ["Google\\Chrome"],
+    registry: ["BraveSoftware\\Brave-Browser", "Google\\Chrome"],
     linux: ["brave-browser", "brave-browser-stable"],
     config: "BraveSoftware/Brave-Browser",
     mac: "Brave Browser",
     win: [
       "%PROGRAMFILES%/BraveSoftware/Brave-Browser/Application/brave.exe",
+      "%PROGRAMFILES(X86)%/BraveSoftware/Brave-Browser/Application/brave.exe",
       "%LOCALAPPDATA%/BraveSoftware/Brave-Browser/Application/brave.exe",
     ],
   },
@@ -87,6 +90,7 @@ const browsers = [
     win: [
       "%LOCALAPPDATA%/Vivaldi/Application/vivaldi.exe",
       "%PROGRAMFILES%/Vivaldi/Application/vivaldi.exe",
+      "%PROGRAMFILES(X86)%/Vivaldi/Application/vivaldi.exe",
     ],
   },
   {
@@ -94,7 +98,7 @@ const browsers = [
     name: "Opera",
     family: "chromium",
     page: "opera://extensions",
-    registry: ["Google\\Chrome"],
+    registry: ["Opera Software\\Opera Stable", "Google\\Chrome"],
     linux: ["opera", "opera-stable"],
     config: "opera",
     mac: "Opera",

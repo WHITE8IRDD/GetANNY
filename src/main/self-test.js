@@ -521,7 +521,7 @@ async function runSelfTest({ services: s, win, app, binPath, userDataPath }) {
           client.send(
             JSON.stringify({
               type: "authenticate",
-              token: s.identity.token,
+              token: s.identity.clientTokens.chromium,
               transport: "websocket",
             }),
           );

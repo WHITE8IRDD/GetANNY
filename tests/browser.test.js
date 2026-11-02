@@ -110,6 +110,27 @@ test("preparing extension packages never claims browser installation or activati
     assert.equal((await installer.check(browser)).installed, null);
   }
 });
+test("desktop-prepared extensions contain only their browser-specific direct credential while release packages contain no secret", async (t) => {
+  const dir = await temporary(t);
+  const token = "c".repeat(64);
+  const installer = new ExtensionInstaller({
+    extensionPath: path.resolve("dist-extension"),
+    userDataPath: dir,
+    clientTokens: { brave: token },
+  });
+  const result = await installer.install("brave");
+  assert.equal(result.directProvisioned, true);
+  const config = await fs.readFile(path.join(result.path, "config.js"), "utf8");
+  assert.match(config, /GETANNY_CONFIG/);
+  assert.match(config, new RegExp(token));
+  assert.equal((await installer.check("brave")).directProvisioned, true);
+  const generic = await fs.readFile(
+    path.resolve("dist-extension/chromium/config.js"),
+    "utf8",
+  );
+  assert.doesNotMatch(generic, /[a-f0-9]{64}/i);
+});
+
 test("bridge requires authentication and an extension handshake before accepting a download", async (t) => {
   let calls = 0;
   const bridge = await bridgeFixture(t, {
@@ -205,7 +226,7 @@ test(
     await fs.writeFile(
       config,
       JSON.stringify({
-        token: services.identity.token,
+        token: services.identity.nativeToken,
         port: services.wsServer.status().port,
         executable: process.execPath,
         script: path.resolve("src/main/browser-integration/native-host.js"),
@@ -313,7 +334,7 @@ test("file handoffs start automatically while media pages wait for a format choi
   const client = await connect(t, services.wsServer);
   await message(client, {
     type: "authenticate",
-    token: services.identity.token,
+    token: services.identity.clientTokens.chrome,
   });
   await message(client, {
     type: "hello",
@@ -359,13 +380,28 @@ test("file handoffs start automatically while media pages wait for a format choi
     false,
   );
   services.browserDetector.exists = async () => false;
+  services.nativeMessagingHost.register = async (browserId) => ({
+    registered: true,
+    path: `/test/${browserId}.json`,
+    hostPath: "/test/native-host",
+  });
   const stages = [];
-  await services.setupInstalledBrowsers(async (stage) => stages.push(stage));
-  assert.deepEqual(stages, [
-    "browser-detect",
-    "browser-detected",
-    "write-setup-report",
-  ]);
+  const provisioned = await services.setupInstalledBrowsers(async (stage) =>
+    stages.push(stage),
+  );
+  assert.equal(provisioned.length, 8);
+  assert.ok(
+    provisioned.every(
+      (item) =>
+        item.browserDetected === false &&
+        item.directProvisioned === true &&
+        item.registered === true,
+    ),
+  );
+  assert.equal(stages[0], "browser-detect");
+  assert.equal(stages[1], "browser-detected");
+  assert.equal(stages.at(-1), "write-setup-report");
+  assert.equal(stages.filter((stage) => stage === "browser-prepared").length, 8);
 });
 
 test("read-only MSI extension resources and older prepared copies remain updateable without changing installed source", async (t) => {
@@ -445,7 +481,7 @@ test("automatic browser handoff foregrounds the application without jeopardizing
   const client = await connect(t, services.wsServer);
   await message(client, {
     type: "authenticate",
-    token: services.identity.token,
+    token: services.identity.clientTokens.chrome,
   });
   await message(client, {
     type: "hello",
@@ -495,7 +531,7 @@ test("portable builds refuse persistent native host registration and retain WebS
   );
   const auth = await message(client, {
     type: "authenticate",
-    token: services.identity.token,
+    token: services.identity.clientTokens.chromium,
     transport: "websocket",
   });
   assert.equal(auth.success, true);
@@ -539,7 +575,7 @@ test("duplicate intercepted handoffs never create a second download job", async 
   const client = await connect(t, services.wsServer);
   await message(client, {
     type: "authenticate",
-    token: services.identity.token,
+    token: services.identity.clientTokens.chrome,
   });
   await message(client, {
     type: "hello",

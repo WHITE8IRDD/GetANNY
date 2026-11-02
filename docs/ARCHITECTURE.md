@@ -5,7 +5,7 @@
 - Electron main owns services, SQLite, filesystem/shell, native dialogs and validated IPC.
 - Sandboxed/context-isolated renderer uses a fixed preload allowlist. IPC checks the actual main frame/sender; no generic filesystem or shell execution API is exposed.
 - `createServices` composes bounded asynchronous HTTP streams, media and torrent engines, cached completion previews, validated settings, browser tooling and the local bridge. The explicit Vite-only preview reuses these services with an isolated database and returns errors for desktop-only actions.
-- Windows native launcher is a compiled C# EXE. It relays standard I/O to the installed Electron runtime with `ELECTRON_RUN_AS_NODE=1`, which runs the JS framing bridge. Native manifests contain executable path, stdio type and exact extension allowlist—not unsupported argument fields.
+- The primary browser transport is a provisioned, authenticated loopback WebSocket. The Windows native launcher is a compiled C# bootstrap/cold-start fallback. It relays standard I/O to the installed Electron runtime with `ELECTRON_RUN_AS_NODE=1`, which runs the JS framing bridge. Native manifests contain executable path, stdio type and exact extension allowlist—not unsupported argument fields.
 
 ## Transfer states
 
@@ -24,15 +24,15 @@ No passwords or tokens are logged. Per-user bridge identity and native configura
 
 ## Browser protocol
 
-1. Native launcher reads its local configuration; native JS authenticates to loopback using the per-user secret. Fallback WebSocket requires the user's explicit key pairing.
-2. Extension sends `hello` with configured browser ID, stable extension ID and version.
-3. Server verifies the handshake and tracks actual heartbeat recency; bare sockets do not count as connected.
+1. A prepared extension opens `ws://127.0.0.1:29615` with its browser-specific 256-bit credential. A generic/legacy extension can ask the authenticated native adapter for that direct credential once and persist it locally; explicit recovery-key entry is the final fallback.
+2. Extension sends `hello` with protocol version 2, configured browser ID, stable extension ID and version. The server binds the credential to that browser identity and tracks actual heartbeat recency; a bare socket never counts as connected.
+3. After bootstrap, the persistent WebSocket is the primary path. Exponential retry reconnects it after extension service-worker, browser or desktop restart. Native Messaging is retained only for secure bootstrap and cold start.
 4. Download requests carry a request ID. File requests are queued or explicitly acknowledged as **review**; media requests are acknowledged as **analyze**, not fake download success.
 5. Ordinary intercepted requests also carry a browser transfer ID, available filename/cookies/referer/user-agent metadata and an intercepted marker. The browser pauses first. Accepted desktop IDs and pending reviews are deduplicated by source/transfer ID; `download-status` reconciles ambiguous reconnects. Main-to-extension commands cancel or resume only the matching native entry.
 6. Definitive request failure resumes native. Unpausable and private transfers remain native. Accepted transfers never deliberately resume the browser copy after cleanup failure. Reviews remain paused across temporary disconnection; dismissal/resume, acceptance/cancel, or clean desktop shutdown resolves them.
 7. A matching response or clear timeout/error reaches the popup / media action. URLs and protocol are validated again at the manager boundary.
 
-WebSocket binds loopback, restricts origins, bounds payloads, rejects unauthenticated requests, limits pending confirmations, and serializes requests per session. It is not a remotely exposed backend. The development preview uses same-origin relative requests to Vite and is not included in production.
+The WebSocket binds loopback, validates `Host` and origin, uses timing-safe authentication, bounds payload/header/string counts, rejects browser/credential mismatches and unauthenticated requests, limits pending confirmations, and serializes requests per session. Browser, native and recovery credentials are separate. It is not a remotely exposed or unrestricted localhost backend. The development preview uses same-origin relative requests to Vite and is not included in production.
 
 ## Completion previews
 
@@ -40,7 +40,7 @@ Only completed regular files are eligible. Visible rows request previews lazily 
 
 ## Shutdown and packaging
 
-An asynchronous Electron shutdown guard stops the bridge and awaits engines before closing SQLite. Tray-close behavior is honored only when a tray actually exists. Builders require renderer, both extension manifests, native modules, tools, licenses and a real Windows launcher. NSIS/MSI register hosts in HKCU; no browser policy or profile edits. Uninstall removes only registrations owned by the app and preserves history/downloads. Browser-side add-ons must be removed through browser UI.
+An asynchronous Electron shutdown guard stops the bridge and awaits engines before closing SQLite. Tray-close behavior is honored only when a tray actually exists. Builders require renderer, both extension manifests, native modules, tools, licenses and a real Windows launcher. A standalone installer helper prepares direct credentials/folders for all targets and registers native fallback in HKCU across both Windows registry views without opening SQLite or binding the bridge port. Packaged startup repairs stale version/path provisioning. No browser policy or profile edits are used. Uninstall removes only registrations/files owned by the app and preserves history/downloads. Browser-side add-ons must be removed through browser UI.
 
 ## Processing progress is not published completion
 

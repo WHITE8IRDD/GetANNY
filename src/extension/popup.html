@@ -90,8 +90,9 @@
       <details>
         <summary>Connection &amp; pairing</summary>
         <p>
-          Prefer the native host: run Browser integration in GetANNY, then
-          reconnect. If unavailable, copy the desktop pairing key here. Never
+          A package prepared by GetANNY connects directly and automatically.
+          Native messaging is used only to bootstrap older or generic packages.
+          If both are unavailable, copy this browser's recovery key here. Never
           share this key.
         </p>
         <label for="browser">This browser</label
@@ -104,12 +105,12 @@
           <option value="vivaldi">Vivaldi</option>
           <option value="opera">Opera</option>
           <option value="edge">Microsoft Edge</option></select
-        ><label for="pairing">Pairing key (optional with native host)</label
+        ><label for="pairing">Recovery key (normally automatic)</label
         ><input
           id="pairing"
           type="password"
           autocomplete="off"
-          placeholder="Paste key from desktop"
+          placeholder="Usually configured automatically"
         /><button id="pair" class="secondary">Save &amp; connect</button>
       </details>
     </main>

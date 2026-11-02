@@ -23,6 +23,8 @@ class NativeMessagingHost {
     port = 29615,
     platform = process.platform,
     home = os.homedir(),
+    run = exec,
+    registryViews = process.arch === "x64" ? ["64", "32"] : ["32"],
   } = {}) {
     Object.assign(this, {
       userDataPath,
@@ -33,6 +35,8 @@ class NativeMessagingHost {
       port,
       platform,
       home,
+      run,
+      registryViews,
     });
     this.base = path.join(userDataPath, "native-messaging");
     this.sourceHost = isPackaged
@@ -147,20 +151,37 @@ class NativeMessagingHost {
       mode: 0o600,
     });
     if (this.platform === "win32") {
-      for (const vendor of browser.registry)
-        await exec(
-          "reg.exe",
-          [
-            "add",
-            `HKCU\\Software\\${vendor}\\NativeMessagingHosts\\${HOST_ID}`,
-            "/ve",
-            "/t",
-            "REG_SZ",
-            "/d",
-            file,
-            "/f",
-          ],
-          { windowsHide: true },
+      const failures = [];
+      for (const vendor of browser.registry) {
+        const key = `HKCU\\Software\\${vendor}\\NativeMessagingHosts\\${HOST_ID}`;
+        for (const view of this.registryViews) {
+          try {
+            await this.run(
+              "reg.exe",
+              [
+                "add",
+                key,
+                "/ve",
+                "/t",
+                "REG_SZ",
+                "/d",
+                file,
+                "/f",
+                `/reg:${view}`,
+              ],
+              { windowsHide: true },
+            );
+          } catch (error) {
+            failures.push(`${vendor} ${view}-bit: ${error.message}`);
+          }
+        }
+      }
+      // Partial registration is useful for some browsers, but it must not be
+      // reported as a completely healthy fallback. Direct provisioning remains
+      // usable and the caller records this as a non-fatal native warning.
+      if (failures.length)
+        throw new Error(
+          `Native fallback registration is incomplete for ${browser.name} (${failures.join("; ")}).`,
         );
     }
     return {
@@ -178,24 +199,33 @@ class NativeMessagingHost {
       const manifest = JSON.parse(await fs.readFile(file, "utf8"));
       await fs.access(manifest.path);
       if (this.platform === "win32") {
-        let matching = false;
+        const registrations = [];
         for (const vendor of browser.registry) {
-          try {
-            const result = await exec(
-              "reg.exe",
-              [
-                "query",
-                `HKCU\\Software\\${vendor}\\NativeMessagingHosts\\${HOST_ID}`,
-                "/ve",
-              ],
-              { windowsHide: true },
-            );
-            if (result.stdout.includes(file)) matching = true;
-          } catch {
-            /* absent */
+          const key = `HKCU\\Software\\${vendor}\\NativeMessagingHosts\\${HOST_ID}`;
+          for (const view of this.registryViews) {
+            try {
+              const result = await this.run(
+                "reg.exe",
+                ["query", key, "/ve", `/reg:${view}`],
+                { windowsHide: true },
+              );
+              if (result.stdout.toLowerCase().includes(file.toLowerCase()))
+                registrations.push({ vendor, view });
+            } catch {
+              /* absent */
+            }
           }
         }
-        if (!matching) return { registered: false, path: file };
+        const expectedRegistrations =
+          browser.registry.length * this.registryViews.length;
+        return {
+          registered:
+            manifest.name === HOST_ID &&
+            registrations.length === expectedRegistrations,
+          path: file,
+          registrations,
+          expectedRegistrations,
+        };
       }
       return { registered: manifest.name === HOST_ID, path: file };
     } catch {
@@ -209,16 +239,26 @@ class NativeMessagingHost {
       if (this.platform === "win32") {
         for (const vendor of browser.registry) {
           const key = `HKCU\\Software\\${vendor}\\NativeMessagingHosts\\${HOST_ID}`;
-          try {
-            const { stdout } = await exec("reg.exe", ["query", key, "/ve"], {
-              windowsHide: true,
-            });
-            if (stdout.includes(this.base))
-              await exec("reg.exe", ["delete", key, "/f"], {
+          for (const view of this.registryViews) {
+            let stdout;
+            try {
+              ({ stdout } = await this.run(
+                "reg.exe",
+                ["query", key, "/ve", `/reg:${view}`],
+                { windowsHide: true },
+              ));
+            } catch {
+              continue; // absent or already removed
+            }
+            if (!stdout.toLowerCase().includes(this.base.toLowerCase()))
+              continue; // never remove a registration owned by another app
+            try {
+              await this.run("reg.exe", ["delete", key, "/f", `/reg:${view}`], {
                 windowsHide: true,
               });
-          } catch {
-            /* absent or already removed */
+            } catch (error) {
+              errors.push(`${vendor} ${view}-bit: ${error.message}`);
+            }
           }
         }
       } else {

@@ -194,8 +194,6 @@ async function recordOperationStage(stage, detail = {}) {
 }
 async function init() {
   await recordOperationStage("init");
-  const { createServices } = require("./services");
-  await recordOperationStage("services-module-loaded");
   const userDataPath = app.getPath("userData");
   const binPath = app.isPackaged
     ? path.join(process.resourcesPath, "bin")
@@ -203,32 +201,20 @@ async function init() {
   const extensionPath = app.isPackaged
     ? path.join(process.resourcesPath, "extension")
     : path.resolve(__dirname, "../../dist-extension");
-  services = await createServices({
-    userDataPath,
-    downloadPath: app.getPath("downloads"),
-    binPath,
-    extensionPath,
-    appPath: process.execPath,
-    isPackaged: app.isPackaged,
-    nativeImage,
-    port: selfTest ? 0 : 29615,
-    startTransfers: !setupOnly && !unregisterOnly,
-    onSettingChange: async (key, value) => {
-      if (key === "launchAtLogin") {
-        if (!["win32", "darwin"].includes(process.platform) && value)
-          throw new Error("Launch at login is supported on Windows and macOS.");
-        if (["win32", "darwin"].includes(process.platform))
-          app.setLoginItemSettings({
-            openAtLogin: value,
-            path: process.execPath,
-          });
-      }
-    },
-    onBrowserRequest: () => showWindow(),
-  });
-  await recordOperationStage("services-created");
+
+  // Installer helpers deliberately avoid the normal service graph. They must
+  // still work while GetANNY already owns its SQLite database or bridge port.
   if (unregisterOnly) {
-    const result = await services.nativeMessagingHost.unregisterAll();
+    const {
+      NativeMessagingHost,
+    } = require("./browser-integration/NativeMessagingHost");
+    const nativeMessagingHost = new NativeMessagingHost({
+      userDataPath,
+      appPath: process.execPath,
+      isPackaged: app.isPackaged,
+      binPath,
+    });
+    const result = await nativeMessagingHost.unregisterAll();
     await recordOperationStage("hosts-unregistered");
     await fs.rm(path.join(userDataPath, "extensions"), {
       recursive: true,
@@ -236,10 +222,11 @@ async function init() {
       maxRetries: 10,
       retryDelay: 150,
     });
+    await fs.rm(path.join(userDataPath, "browser-integration-state.json"), {
+      force: true,
+    });
     if (["win32", "darwin"].includes(process.platform))
       app.setLoginItemSettings({ openAtLogin: false });
-    await services.close();
-    await recordOperationStage("services-closed");
     await fs.writeFile(
       path.join(userDataPath, "browser-uninstall-report.json"),
       JSON.stringify(
@@ -259,18 +246,87 @@ async function init() {
     return;
   }
   if (setupOnly) {
-    const result = await services.setupInstalledBrowsers(recordOperationStage);
+    const {
+      setupBrowserIntegration,
+    } = require("./browser-integration/BrowserIntegrationSetup");
+    const report = await setupBrowserIntegration({
+      userDataPath,
+      extensionPath,
+      binPath,
+      appPath: process.execPath,
+      isPackaged: app.isPackaged,
+      version: app.getVersion(),
+      onProgress: recordOperationStage,
+    });
     await recordOperationStage("browsers-prepared", {
-      browsers: result.length,
+      browsers: report.results.length,
+      directReady: report.directReady,
+      nativeReady: report.nativeReady,
     });
-    await services.close();
-    await recordOperationStage("services-closed");
     await recordOperationStage("complete", {
-      succeeded: !result.some((value) => value.error),
+      succeeded: report.directReady,
+      nativeReady: report.nativeReady,
     });
-    app.exit(result.some((value) => value.error) ? 1 : 0);
+    app.exit(report.directReady ? 0 : 1);
     return;
   }
+
+  // Repair stale installer output on the first normal launch after an update
+  // or install-path change. This never installs/enables an extension or edits a
+  // browser profile; it refreshes only GetANNY-owned files and HKCU host keys.
+  if (
+    app.isPackaged &&
+    !selfTest &&
+    testDataIndex < 0 &&
+    !process.env.PORTABLE_EXECUTABLE_FILE
+  ) {
+    const {
+      setupBrowserIntegration,
+      browserIntegrationNeedsRepair,
+    } = require("./browser-integration/BrowserIntegrationSetup");
+    if (
+      await browserIntegrationNeedsRepair({
+        userDataPath,
+        version: app.getVersion(),
+        appPath: process.execPath,
+      })
+    )
+      await setupBrowserIntegration({
+        userDataPath,
+        extensionPath,
+        binPath,
+        appPath: process.execPath,
+        isPackaged: true,
+        version: app.getVersion(),
+      }).catch((error) =>
+        log.warn("Browser integration auto-repair:", error.message),
+      );
+  }
+
+  const { createServices } = require("./services");
+  services = await createServices({
+    userDataPath,
+    downloadPath: app.getPath("downloads"),
+    binPath,
+    extensionPath,
+    appPath: process.execPath,
+    isPackaged: app.isPackaged,
+    nativeImage,
+    port: selfTest ? 0 : 29615,
+    startTransfers: true,
+    onSettingChange: async (key, value) => {
+      if (key === "launchAtLogin") {
+        if (!["win32", "darwin"].includes(process.platform) && value)
+          throw new Error("Launch at login is supported on Windows and macOS.");
+        if (["win32", "darwin"].includes(process.platform))
+          app.setLoginItemSettings({
+            openAtLogin: value,
+            path: process.execPath,
+          });
+      }
+    },
+    onBrowserRequest: () => showWindow(),
+  });
   if (
     !selfTest &&
     testDataIndex < 0 &&
@@ -413,7 +469,7 @@ async function init() {
         client.send(
           JSON.stringify({
             type: "authenticate",
-            token: services.identity.token,
+            token: services.identity.nativeToken,
             transport: "native",
           }),
         );

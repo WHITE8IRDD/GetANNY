@@ -1,5 +1,6 @@
 // Runs the REAL unpacked Chromium extension in a real browser against the
-// INSTALLED Electron app and its registered native executable. No fake API.
+// INSTALLED Electron app and its provisioned authenticated direct bridge.
+// Native bootstrap/cold start is exercised separately. No fake browser API.
 const { chromium, expect } = require("@playwright/test");
 const { spawn, execFile } = require("node:child_process");
 const { promisify } = require("node:util");
@@ -32,18 +33,23 @@ const exec = promisify(execFile);
   };
   const fixture = await fixtureServer(t, { size: 1024 * 1024, delay: 5 }),
     media = await mediaFixture(t);
-  const app = spawn(
-    executable,
-    ["--test-user-data", userData, "--remote-debugging-port=9223"],
-    { stdio: ["ignore", "pipe", "pipe"] },
-  );
+  let app;
   let logs = "";
-  app.stdout.on("data", (chunk) => {
-    logs += chunk;
-  });
-  app.stderr.on("data", (chunk) => {
-    logs += chunk;
-  });
+  const startApp = () => {
+    app = spawn(
+      executable,
+      ["--test-user-data", userData, "--remote-debugging-port=9223"],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
+    app.stdout.on("data", (chunk) => {
+      logs += chunk;
+    });
+    app.stderr.on("data", (chunk) => {
+      logs += chunk;
+    });
+    return app;
+  };
+  startApp();
   let electron,
     browser,
     externalBrowser,
@@ -110,7 +116,7 @@ const exec = promisify(execFile);
       "installed renderer page",
     );
     await page.waitForSelector(".sidebar");
-    const invoke = (channel, ...args) =>
+    let invoke = (channel, ...args) =>
       page.evaluate(
         ([channel, args]) => window.getanny.invoke(channel, ...args),
         [channel, args],
@@ -284,17 +290,19 @@ const exec = promisify(execFile);
     const popup = await browser.newPage();
     await popup.goto(`chrome-extension://${CHROMIUM_ID}/popup.html`);
     await expect(popup.locator("#status")).toHaveText(
-      /Connected · Native host/,
+      /Connected · Secure local bridge/,
       { timeout: 30000 },
     );
     const status = await invoke("browser:status");
     if (
       !status.websocket.sessions.some(
         (session) =>
-          session.browserId === browserId && session.transport === "native",
+          session.browserId === browserId &&
+          session.transport === "websocket" &&
+          session.credential === "provisioned",
       )
     )
-      throw new Error(`No verified native ${browserId} session`);
+      throw new Error(`No verified provisioned direct ${browserId} session`);
     await popup.locator("#url").fill(fixture.url + "/file.bin");
     await popup.locator("#send").click();
     await expect(popup.locator("#message")).toHaveText(
@@ -319,6 +327,91 @@ const exec = promisify(execFile);
       checksum(fixture.state.data)
     )
       throw new Error("Browser download hash mismatch");
+
+    // Keep the browser and extension worker alive while the installed desktop
+    // exits and starts again. The saved browser-scoped capability must reconnect
+    // directly; this is the user-visible recovery path after a desktop restart.
+    await invoke("app:quit");
+    await waitFor(() => app.exitCode !== null, 15000, "desktop restart stop");
+    await electron.close().catch(() => {});
+    electron = null;
+    await waitFor(
+      async () => {
+        try {
+          return !(await fetch("http://127.0.0.1:9223/json/version")).ok;
+        } catch {
+          return true;
+        }
+      },
+      10000,
+      "old desktop debugging endpoint closed",
+    );
+    startApp();
+    await waitFor(
+      async () => {
+        try {
+          return (await fetch("http://127.0.0.1:9223/json/version")).ok;
+        } catch {
+          return false;
+        }
+      },
+      30000,
+      "restarted installed Electron debugging endpoint",
+    );
+    electron = await chromium.connectOverCDP("http://127.0.0.1:9223");
+    page = null;
+    await waitFor(
+      () => {
+        page = electron
+          .contexts()[0]
+          ?.pages()
+          .find((candidate) => candidate.url().startsWith("file://"));
+        return !!page;
+      },
+      30000,
+      "restarted installed renderer page",
+    );
+    await page.waitForSelector(".sidebar");
+    invoke = (channel, ...args) =>
+      page.evaluate(
+        ([invokeChannel, invokeArgs]) =>
+          window.getanny.invoke(invokeChannel, ...invokeArgs),
+        [channel, args],
+      );
+    await expect(popup.locator("#status")).toHaveText(
+      /Connected · Secure local bridge/,
+      { timeout: 45000 },
+    );
+    await waitFor(
+      async () => {
+        const restartedStatus = await invoke("browser:status");
+        return restartedStatus.websocket.sessions.some(
+          (session) =>
+            session.browserId === browserId &&
+            session.transport === "websocket" &&
+            session.credential === "provisioned",
+        );
+      },
+      45000,
+      "extension direct reconnect after desktop restart",
+    );
+    const restartUrl = fixture.url + "/file.bin?desktop-restart=1";
+    await popup.locator("#url").fill(restartUrl);
+    await popup.locator("#send").click();
+    await expect(popup.locator("#message")).toHaveText(
+      "Download queued in GetANNY.",
+      { timeout: 20000 },
+    );
+    await waitFor(
+      async () =>
+        (await invoke("download:get-all")).some(
+          (download) =>
+            download.url === restartUrl && download.status === "completed",
+        ),
+      30000,
+      "download handoff after automatic direct reconnect",
+    );
+
     const site = await browser.newPage();
     await site.goto(media.server.url + "/watch.html");
     await waitFor(
@@ -434,10 +527,11 @@ const exec = promisify(execFile);
               : "Unpacked developer test in a disposable profile",
           headless: !["vivaldi", "chrome"].includes(browserId),
           transport:
-            "Native Messaging → C# executable → Electron Node → authenticated WebSocket → installed Electron → SQLite/download engine",
+            "Browser extension → browser-specific credential → authenticated loopback WebSocket → installed Electron → SQLite/download engine (no native-host lookup)",
           checks: [
             "Extension loads with stable ID",
-            "Native handshake shown in popup and desktop",
+            "Provisioned direct WebSocket handshake shown in popup and desktop",
+            "Extension automatically reconnects directly after installed desktop restart and completes another handoff",
             "Popup-origin HTTP download hash verified",
             "Ordinary browser download intercepted with cookie forwarding, desktop hash verification and native-entry cleanup",
             "Content script detects actual HTML5 media",

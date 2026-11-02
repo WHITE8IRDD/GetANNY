@@ -89,12 +89,21 @@ function Profile-Snapshot([string] $Data) {
 }
 function Owned-NativeEntries([string] $Data) {
   $found=[System.Collections.Generic.List[object]]::new()
-  foreach($vendor in @('Google\Chrome','Chromium','Mozilla','Vivaldi','Microsoft\Edge')) {
-    $key="HKCU:\Software\$vendor\NativeMessagingHosts\com.getanny.native"
-    if(-not(Test-Path $key)){continue}
-    $value=(Get-Item $key).GetValue('')
-    if($value -and $value.StartsWith("$Data\native-messaging\",[StringComparison]::OrdinalIgnoreCase)) { $found.Add(@{key=$key;value=$value}) }
+  $vendors=@('Google\Chrome','Chromium','Mozilla','Vivaldi','Microsoft\Edge','BraveSoftware\Brave-Browser','Opera Software\Opera Stable')
+  foreach($vendor in $vendors) {
+    $key="HKCU\Software\$vendor\NativeMessagingHosts\com.getanny.native"
+    foreach($view in @('64','32')) {
+      $output=& reg.exe query $key /ve "/reg:$view" 2>$null
+      if($LASTEXITCODE -ne 0){continue}
+      $text=($output -join "`n")
+      if($text -match [regex]::Escape("$Data\native-messaging\")) {
+        $value=([regex]::Match($text,'REG_SZ\s+(.+)$',[Text.RegularExpressions.RegexOptions]::Multiline)).Groups[1].Value.Trim()
+        $found.Add(@{key=$key;view=$view;value=$value})
+      }
+    }
   }
+  $expected=$vendors.Count * 2
+  if($found.Count -ne $expected){throw "Expected $expected owned native registrations across both registry views; found $($found.Count)."}
   return $found.ToArray()
 }
 function Assert-Uninstalled([string] $InstalledExe, $Shortcuts, [string] $Data, $Before, $NativeEntries) {
@@ -105,7 +114,10 @@ function Assert-Uninstalled([string] $InstalledExe, $Shortcuts, [string] $Data, 
   foreach($directory in @('native-messaging','extensions')) {if(Test-Path (Join-Path $Data $directory)){throw "Uninstall left owned prepared directory $directory"}}
   $after=Profile-Snapshot $Data
   foreach($entry in $NativeEntries) {
-    if((Test-Path $entry.key) -and (Get-Item $entry.key).GetValue('') -ieq $entry.value) {throw "Owned native registry entry survived uninstall: $($entry.key)"}
+    $output=& reg.exe query $entry.key /ve "/reg:$($entry.view)" 2>$null
+    if($LASTEXITCODE -eq 0 -and (($output -join "`n") -match [regex]::Escape($entry.value))) {
+      throw "Owned native registry entry survived uninstall: $($entry.key) ($($entry.view)-bit view)"
+    }
   }
   if($after.missingCompletedFiles -gt $Before.missingCompletedFiles) {throw 'Uninstallation removed a real completed output from the default profile.'}
   if ($after.history -lt 1 -or $Before.sha256 -cne $after.sha256) { throw 'Uninstallation changed or removed actual default-profile history/settings.' }

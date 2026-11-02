@@ -229,6 +229,7 @@ export default function BrowserPage({ active = true }) {
                     setSelected(item.id);
                     setError("");
                     setPrepared(null);
+                    setPairing("");
                   }}
                 >
                   <span className={`browser-logo ${item.id}`}>
@@ -284,10 +285,14 @@ export default function BrowserPage({ active = true }) {
             </div>
           </div>
           <div
-            className={`setup-step ${browser?.prepared && browser?.registered ? "done" : ""}`}
+            className={`setup-step ${browser?.prepared && browser?.directProvisioned ? "done" : ""}`}
           >
             <span className="step-number">
-              {browser?.prepared && browser?.registered ? <LuCheck /> : "1"}
+              {browser?.prepared && browser?.directProvisioned ? (
+                <LuCheck />
+              ) : (
+                "1"
+              )}
             </span>
             <div className="step-content">
               <h3>{t("browser.step1Title")}</h3>
@@ -300,17 +305,17 @@ export default function BrowserPage({ active = true }) {
                   disabled={!api.desktop || !settings.browserIntegrationEnabled}
                   onClick={prepare}
                 >
-                  {browser?.prepared && browser?.registered
+                  {browser?.prepared && browser?.directProvisioned
                     ? t("browser.refreshSetup")
                     : t("browser.setupBrowser", {
                         name: browser?.name || t("browser.title"),
                       })}
                 </Button>
                 <span className="step-result">
-                  {browser?.registered ? (
+                  {browser?.directProvisioned ? (
                     <>
                       <LuCheck />
-                      {t("browser.hostRegistered")}
+                      {t("browser.directProvisioned")}
                     </>
                   ) : (
                     t("browser.noAdmin")
@@ -335,6 +340,16 @@ export default function BrowserPage({ active = true }) {
                   >
                     <LuFolderOpen />
                   </IconButton>
+                </div>
+              )}
+              {prepared?.browserId === selected && prepared.nativeError && (
+                <div className="notice warning">
+                  <LuCircleHelp />
+                  <span>
+                    {t("browser.nativeFallbackWarning", {
+                      error: prepared.nativeError,
+                    })}
+                  </span>
                 </div>
               )}
             </div>
@@ -455,7 +470,7 @@ export default function BrowserPage({ active = true }) {
               icon={LuKeyRound}
               onClick={() =>
                 run(async () =>
-                  setPairing(await api.invoke("browser:pairing-key")),
+                  setPairing(await api.invoke("browser:pairing-key", selected)),
                 )
               }
             >
