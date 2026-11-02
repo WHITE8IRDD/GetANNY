@@ -1,5 +1,5 @@
 // Real Firefox, its supported TEMPORARY developer add-on API, the installed
-// Electron application and native host. No signature/policy/profile bypass.
+// Electron application and provisioned direct bridge. No signature/policy/profile bypass.
 const { chromium, expect } = require("@playwright/test");
 const { Builder, By } = require("selenium-webdriver");
 const firefox = require("selenium-webdriver/firefox");
@@ -93,11 +93,16 @@ const exec = promisify(execFile);
     driver = await new Builder()
       .forBrowser("firefox")
       .setFirefoxOptions(
-        new firefox.Options()
-          .setBinary(firefoxExe)
-          .addArguments("-headless", "-remote-allow-system-access"),
+        new firefox.Options().setBinary(firefoxExe).addArguments("-headless"),
       )
-      .setFirefoxService(new firefox.ServiceBuilder(geckoExe))
+      // Firefox 138+ refuses privileged WebDriver context through browser
+      // capabilities. Geckodriver's explicit test-process flag is the supported
+      // opt-in and applies only to this disposable automation session.
+      .setFirefoxService(
+        new firefox.ServiceBuilder(geckoExe).addArguments(
+          "--allow-system-access",
+        ),
+      )
       .build();
     await driver.manage().setTimeouts({ pageLoad: 30000, script: 15000 });
     const addonId = await driver.installAddon(addon, true);
@@ -107,10 +112,12 @@ const exec = promisify(execFile);
       async () =>
         (await invoke("browser:status")).websocket.sessions.some(
           (session) =>
-            session.browserId === "firefox" && session.transport === "native",
+            session.browserId === "firefox" &&
+            session.transport === "websocket" &&
+            session.credential === "provisioned",
         ),
       30000,
-      "actual Firefox native connection",
+      "actual Firefox provisioned direct connection",
     );
     // Modern Firefox requires explicit WebDriver system access to inspect an
     // extension page. This flag applies ONLY to our new automation profile; it
@@ -134,7 +141,7 @@ const exec = promisify(execFile);
     await driver.wait(
       async () =>
         (await driver.findElement(By.id("status")).getText()).includes(
-          "Connected · Native host",
+          "Connected · Secure local bridge",
         ),
       25000,
     );
@@ -279,10 +286,11 @@ const exec = promisify(execFile);
           browser: "Mozilla Firefox",
           browserVersion: capabilities.get("browserVersion"),
           temporary: true,
-          transport: "native",
+          transport:
+            "Firefox extension → browser-specific credential → authenticated loopback WebSocket → installed Electron → SQLite/download engine",
           checks: [
             "Actual Firefox supported temporary add-on install",
-            "Verified native host handshake in popup and desktop",
+            "Verified provisioned direct WebSocket handshake in popup and desktop",
             "Popup-origin HTTP download SHA-256 verified",
             "Ordinary Firefox download intercepted with cookie forwarding, desktop hash verification and native-entry cleanup",
             "Actual content-script media detection",

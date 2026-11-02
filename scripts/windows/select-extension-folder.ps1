@@ -42,8 +42,12 @@ while((Get-Date) -lt $deadline) {
   Start-Sleep -Milliseconds 150
 }
 if(-not $dialog){throw ('Chrome folder dialog unavailable. Actual browser-owned windows: '+($seen | ConvertTo-Json -Compress))}
-[GetANNYTestForeground]::SetForegroundWindow([IntPtr]$dialog.Current.NativeWindowHandle) | Out-Null
-$dialog.SetFocus()
+if(-not [GetANNYTestForeground]::SetForegroundWindow([IntPtr]$dialog.Current.NativeWindowHandle)){throw 'Chrome folder dialog could not be brought to the foreground.'}
+# Windows can reject SetFocus on the top-level file-dialog element even though
+# its native window is foreground and can safely receive Alt+D. The focused
+# address element is ownership/type checked below before any path is entered.
+try{$dialog.SetFocus()}catch{}
+Start-Sleep -Milliseconds 150
 [System.Windows.Forms.SendKeys]::SendWait('%d')
 Start-Sleep -Milliseconds 150
 $address=$automation::FocusedElement
