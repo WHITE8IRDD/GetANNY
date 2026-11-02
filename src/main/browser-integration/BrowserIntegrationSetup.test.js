@@ -98,3 +98,50 @@ test("standalone setup provisions every browser without executable detection and
     true,
   );
 });
+
+test("repairable direct provisioning failure is persisted for installer diagnostics", async (t) => {
+  const dir = await fs.mkdtemp(
+    path.join(os.tmpdir(), "getanny-setup-failure-"),
+  );
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const report = await setupBrowserIntegration({
+    userDataPath: dir,
+    appPath: "/opt/GetANNY/GetANNY.exe",
+    version: "9.9.9",
+    extensionInstaller: {
+      install: async (browserId) => {
+        if (browserId === "firefox")
+          throw new Error("simulated locked prepared folder");
+        return {
+          browserId,
+          prepared: true,
+          directProvisioned: true,
+          path: `/prepared/${browserId}`,
+        };
+      },
+    },
+    nativeMessagingHost: {
+      register: async (browserId) => ({
+        registered: true,
+        path: `/manifest/${browserId}`,
+        hostPath: "/native/host",
+      }),
+    },
+  });
+  assert.equal(report.passed, false);
+  assert.equal(report.directReady, false);
+  assert.match(
+    report.results.find(({ browserId }) => browserId === "firefox").error,
+    /locked prepared folder/,
+  );
+  assert.deepEqual(
+    JSON.parse(
+      await fs.readFile(path.join(dir, "browser-setup-report.json"), "utf8"),
+    ),
+    report,
+  );
+  await assert.rejects(
+    fs.access(path.join(dir, "browser-integration-state.json")),
+    /ENOENT/,
+  );
+});

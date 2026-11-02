@@ -5,7 +5,7 @@ Browser integration now uses an authenticated loopback WebSocket as its primary 
 - Provisions every supported browser during EXE/MSI setup without depending on executable detection.
 - Uses distinct 256-bit credentials for native bootstrap, manual recovery and each browser; generic release ZIPs contain no secret.
 - Connects prepared extensions directly, persists credentials delivered through authenticated native bootstrap, and reconnects with bounded exponential backoff after desktop/browser worker restarts.
-- Separates installer setup from SQLite, download engines, windows and the fixed bridge port; packaged startup repairs stale version/path or missing prepared files.
+- Separates installer setup from SQLite, download engines, windows and the fixed bridge port; packaged startup repairs stale version/path or missing prepared files without rolling back the desktop product over a repairable browser-setup error.
 - Registers and removes native-host keys in both 64-bit and 32-bit Windows registry views and reports partial failures honestly.
 - Hardens loopback Host/origin checks, browser/credential binding, payload/header limits and unsafe forwarded-header rejection.
 - Adds installer, identity migration/race, registry-view, native-bootstrap, direct-authentication, restart-recovery and secret-free-package coverage.

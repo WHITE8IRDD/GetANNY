@@ -20,11 +20,14 @@ test("Windows packaging fails closed when required runtime resources are absent"
 test("Windows packages exclude local native build output and its machine paths", async () => {
   const config = await fs.readFile("electron-builder.yml", "utf8");
   for (const pattern of [
-    '!node_modules/better-sqlite3/build/**/*',
-    '!node_modules/bufferutil/**/*',
-    '!node_modules/utf-8-validate/**/*',
+    "!node_modules/better-sqlite3/build/**/*",
+    "!node_modules/bufferutil/**/*",
+    "!node_modules/utf-8-validate/**/*",
   ])
-    assert.ok(config.includes(pattern), `Missing package exclusion: ${pattern}`);
+    assert.ok(
+      config.includes(pattern),
+      `Missing package exclusion: ${pattern}`,
+    );
 });
 test("Windows packaging rejects existing but checksum-invalid tools", async (t) => {
   const root = await temporary(t);
@@ -112,6 +115,12 @@ test("real electron-builder MSI template gets safe shortcut components, OS check
     /<File Id="mainExecutable" Source="GetANNY.exe"><\/File>/,
   );
   assert.match(result, /--setup-browser-hosts --quiet/);
+  assert.match(
+    result,
+    /Id="GetANNYPrepareBrowsers"[^>]*Return="ignore"/,
+    "repairable browser provisioning must not roll back the MSI product",
+  );
+  assert.doesNotMatch(result, /Id="GetANNYPrepareBrowsers"[^>]*Return="check"/);
   assert.match(result, /--unregister-browser-hosts --quiet/);
   assert.match(
     result,

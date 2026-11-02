@@ -320,6 +320,10 @@ test("file handoffs start automatically while media pages wait for a format choi
   const dir = await fs.mkdtemp(
     path.join(os.tmpdir(), "getanny-browser-review-"),
   );
+  const fixture = await fixtureServer(t, {
+    size: 2 * 1024 * 1024,
+    delay: 2,
+  });
   const services = await createServices({
     userDataPath: dir,
     downloadPath: path.join(dir, "downloads"),
@@ -343,16 +347,17 @@ test("file handoffs start automatically while media pages wait for a format choi
   });
   const file = await message(client, {
     type: "download",
-    url: "https://example.test/a",
+    url: `${fixture.url}/file.bin`,
     kind: "file",
   });
   assert.equal(file.action, "queued");
   assert.equal(file.success, true);
   assert.equal(services.manager.getAll().length, 1);
-  // The handoff starts immediately; depending on scheduling it is already
-  // connecting by the time the acknowledgement reaches the browser.
+  // The handoff starts immediately. Depending on scheduling, the local fixture
+  // may have reached any normal active/completed state by the time the
+  // acknowledgement reaches the browser; failure/review states are not valid.
   assert.ok(
-    ["queued", "connecting", "downloading"].includes(
+    ["queued", "connecting", "downloading", "processing", "completed"].includes(
       services.manager.getAll()[0].status,
     ),
     services.manager.getAll()[0].status,
@@ -401,7 +406,10 @@ test("file handoffs start automatically while media pages wait for a format choi
   assert.equal(stages[0], "browser-detect");
   assert.equal(stages[1], "browser-detected");
   assert.equal(stages.at(-1), "write-setup-report");
-  assert.equal(stages.filter((stage) => stage === "browser-prepared").length, 8);
+  assert.equal(
+    stages.filter((stage) => stage === "browser-prepared").length,
+    8,
+  );
 });
 
 test("read-only MSI extension resources and older prepared copies remain updateable without changing installed source", async (t) => {

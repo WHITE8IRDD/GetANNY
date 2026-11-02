@@ -13,7 +13,7 @@ The persistent error was not a browser-specific Brave, Chrome or Firefox problem
 4. NSIS only printed a detail when the helper failed, while the MSI custom action used `Return="ignore"`;
 5. the extension tried native messaging first and its WebSocket fallback had no automatically provisioned credential, so it could only display a registration/pairing error.
 
-That shared helper explains why changing from MSI to EXE did not repair the connection: the package formats reached the same detection-gated registration logic and suppressed or misclassified the same outcome.
+That shared helper explains why changing from MSI to EXE did not repair the connection: the package formats reached the same detection-gated registration logic and suppressed or misclassified the same outcome. In v2, browser provisioning remains non-fatal to the product install because it is repairable, but it is no longer silent: the standalone helper writes per-browser diagnostics and packaged startup retries stale, missing or incomplete direct provisioning.
 
 There were additional reliability gaps:
 
