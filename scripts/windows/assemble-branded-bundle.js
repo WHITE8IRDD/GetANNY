@@ -157,7 +157,7 @@ function main() {
       `- Source commit: \`${commit}\``,
       "- Platform: Windows 10/11 x64",
       "- Signing: **unsigned** (no certificate was supplied)",
-      "- Repository: https://github.com/WHITE8IRDD/GetANNY",
+      "- Repository: https://github.com/p4yy/GetANNY",
       "- Release: local build; not yet published",
       "",
       "The EXE, MSI and portable executables are unsigned. Firefox packages are",

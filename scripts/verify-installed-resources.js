@@ -18,7 +18,7 @@ module.exports = async (context) => {
   if (
     updaterConfig &&
     (!/^provider:\s*github\s*$/m.test(updaterConfig) ||
-      !/^owner:\s*WHITE8IRDD\s*$/m.test(updaterConfig) ||
+      !/^owner:\s*p4yy\s*$/m.test(updaterConfig) ||
       !/^repo:\s*GetANNY\s*$/m.test(updaterConfig))
   )
     throw new Error("Packaged updater configuration does not point to the public GetANNY release feed");

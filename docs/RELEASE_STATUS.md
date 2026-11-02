@@ -1,21 +1,28 @@
-# GetANNY 2.2.6 release status
+# GetANNY 2.3.0 pull-request verification status
 
-- Fixes Google Drive and other cloud/private downloads that failed with extensionless `identifier`/`uc` files or saved authentication pages.
-- The browser extension now includes site cookies for cloud/private downloads by default, persists the checkbox choice in `chrome.storage.local`, and forwards cookies automatically for background download handoffs.
-- The popup explains the privacy boundary: session cookies go only to the local GetANNY app, are held in memory for the transfer, and are excluded from history, renderer events and logs.
-- Adds RFC 5987/6266 `filename*` parsing, MIME-based filename fallback, HTML sign-in/virus-page detection, and single-connection fallback when `Accept-Ranges: bytes` is missing or a dynamic ZIP stream is detected.
-- Windows x64 Setup EXE, MSI, portable EXE, Store AppX and all eight browser-extension ZIPs were built locally for 2.2.6.
-- Published as an official GitHub release with a SHA-256 `checksums.txt`.
-- Windows binaries are unsigned. Verify the published SHA-256 checksums before running installers.
+- Source version: 2.3.0, based on repository `main` after the latest official v2.2.5 release and the newer unpublished 2.2.6 source changes.
+- Linux source suite: **125/125 passed with no skips** for this worktree, using real local HTTP/HTTPS, SQLite, yt-dlp/FFmpeg fixtures, authenticated native framing and direct bridge restart/reconnect coverage. See `TESTING.md` for exact scope.
+- Production renderer and all eight generic 2.3.0 extension packages built successfully. Automated coverage verifies that generic artifacts contain no private bridge credential.
+- `npm audit --audit-level=high` passed the configured gate and reported 15 moderate development/packaging-tree advisories.
+- Windows EXE/MSI packaging, install/reinstall/uninstall, compiled C# launcher, actual extension reconnect across installed-desktop restart and branded-browser matrix: **not yet executed for this change**. A pull request or workflow definition is not a passing result.
+- No v2.3.0 tag, GitHub release, installer bundle or final download link has been published.
+- Windows packages produced by repository CI are unsigned unless an authorized signing certificate is supplied; signature status must be taken from exact-run evidence.
+
+---
+
+# GetANNY 2.2.6 source status
+
+- This newer source revision added cloud/private-download cookie handling and filename/content-type fixes after v2.2.5.
+- The canonical `p4yy/GetANNY` repository has no published `v2.2.6` release. Earlier documentation claiming otherwise was incorrect.
+- Any local 2.2.6 builds are not official release evidence and are superseded by the 2.3.0 candidate work.
 
 ---
 
 # GetANNY 2.2.5 release status
 
-- Fixes the 2.2.4 Setup EXE update-check error by packaging `resources/app-update.yml` for the GitHub update feed.
-- Local renderer production build and Windows x64 Setup EXE, MSI and portable package builds completed. The Setup EXE includes `resources/app-update.yml` for the GitHub updater feed.
-- Update-check errors now appear as a compact, dismissible notice in the lower-right corner; retry remains available. No application tests were run, so this build is not test-certified.
-- This is a local build only. It has not been published as an official GitHub release.
+- v2.2.5 is the latest official canonical release at the time 2.3.0 development began.
+- It fixes the 2.2.4 Setup EXE update-check configuration and includes local renderer/Windows package builds.
+- Its release notes disclose that automated tests were skipped; it is not evidence that browser integration worked in normal installed profiles.
 - Windows binaries are unsigned. Verify the published SHA-256 checksums before running installers.
 
 ---

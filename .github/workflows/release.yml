@@ -1,7 +1,10 @@
 name: Windows installers and integration tests
 on:
   push:
-    branches: [main, arena/456bcab4-getanny, arena/42d3216b-getanny]
+    # Every Arena task has a unique fixed branch. Match the namespace instead
+    # of retaining stale one-off branch names, so candidate PRs get the same
+    # Windows installer/browser evidence as main.
+    branches: [main, "arena/**"]
     paths-ignore: ["**/*.md"]
   workflow_dispatch:
     inputs:

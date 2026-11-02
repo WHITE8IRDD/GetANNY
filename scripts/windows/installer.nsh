@@ -6,10 +6,12 @@
   FileOpen $0 "$INSTDIR\resources\getanny-github-updates" w
   FileWrite $0 "nsis-github"
   FileClose $0
-  DetailPrint "Preparing GetANNY browser connection files for this user..."
+  DetailPrint "Provisioning GetANNY's secure local browser bridge for this user..."
+  ; The helper is standalone: it never starts the download database/server and
+  ; provisions every supported browser, including browsers installed later.
   ExecWait '"$INSTDIR\GetANNY.exe" --setup-browser-hosts --quiet' $0
   ${If} $0 != 0
-    DetailPrint "Browser preparation needs attention. Use Browser integration after launching GetANNY."
+    DetailPrint "Browser bridge provisioning failed; GetANNY will retry on first launch and show diagnostics in Browser integration."
   ${EndIf}
 !macroend
 !macro customUnInstall

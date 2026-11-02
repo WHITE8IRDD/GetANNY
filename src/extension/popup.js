@@ -28,7 +28,7 @@ async function refresh() {
     const response = await send({ type: "status" });
     status.className = `connection ${response.connected ? "online" : "offline"}`;
     status.textContent = response.connected
-      ? `Connected · ${response.transport === "native" ? "Native host" : "Paired WebSocket"}`
+      ? `Connected · ${response.transport === "native" ? "Native bootstrap" : "Secure local bridge"}`
       : response.error || "Waiting for desktop handshake…";
   } catch (error) {
     status.textContent = error.message;

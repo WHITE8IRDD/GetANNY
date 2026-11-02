@@ -6,26 +6,26 @@ GetANNY checks executable locations and Windows App Paths registrations. Portabl
 
 Browsers do not provide an external trustworthy installed/enabled query to this application. Therefore:
 
-- **Detected**: browser executable exists.
-- **Prepared**: an extension folder exists. This is **not installed**.
-- **Host registered**: a native manifest / current-user registry entry points to an executable launcher. This is **not connected**.
-- **Connected and verified**: the extension completed an authenticated handshake and sends heartbeats. This proves it is enabled in a running browser session.
+- **Detected**: browser executable exists. Detection is a convenience for opening the management page; it no longer gates setup.
+- **Direct bridge prepared**: a browser-specific extension folder and private per-user credential exist. This is **not installed**.
+- **Native fallback registered**: a native manifest / current-user registry entry points to an executable launcher. This is **not connected** and is no longer required for the normal data path.
+- **Connected and verified**: the extension completed an authenticated protocol-v2 hello over the direct loopback bridge and sends heartbeats. This proves it is enabled in a running browser session.
 - **No handshake**: installed/enabled state is **unknown**. It could be absent, disabled, closed, misconfigured, or blocked.
 
 Browser ID is supplied by the selected browser-targeted configuration; it is not a way to fingerprint browsers that deliberately mimic Chrome. Use the correct package / popup browser choice.
 
 ## Compatibility investigation
 
-| Browser                     | Extension configuration                                                   | Management page                         | Windows native lookup used                                           | Installation / update                                                                                                                                                |
-| --------------------------- | ------------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Helium                      | Shared Chromium MV3, stable public key / ID                               | `chrome://extensions`                   | Chrome-compatible HKCU `Software\Google\Chrome\NativeMessagingHosts` | Load unpacked; reload same folder on update. Windows Helium still names its executable `chrome.exe` under `imput\Helium\Application`.                                |
-| Google Chrome               | Chromium MV3 (Chrome 116+)                                                | `chrome://extensions`                   | `Software\Google\Chrome\NativeMessagingHosts`                        | Developer-mode Load unpacked. No signed CRX / Chrome Web Store listing supplied.                                                                                     |
-| Chromium                    | Chromium MV3                                                              | `chrome://extensions`                   | `Software\Chromium\NativeMessagingHosts`, Chrome fallback            | Load unpacked. Portable builds may need Locate browser.                                                                                                              |
-| Brave                       | Chromium MV3                                                              | `brave://extensions`                    | Chrome-compatible lookup                                             | Load unpacked. Shields / per-site extension access can affect detection.                                                                                             |
-| Mozilla Firefox             | Separate MV2 background / browser_action / Gecko ID and native permission | `about:debugging#/runtime/this-firefox` | `Software\Mozilla\NativeMessagingHosts`                              | Unsigned temporary add-on for development only. Permanent installation requires Mozilla signing. Reload after changes; temporary installation disappears on restart. |
-| Vivaldi                     | Shared Chromium MV3                                                       | `vivaldi://extensions`                  | Vivaldi-specific registration plus Chrome-compatible fallback        | Developer-mode Load unpacked; reload on update.                                                                                                                      |
-| Opera                       | Shared Chromium MV3                                                       | `opera://extensions`                    | Chrome-compatible native lookup                                      | Developer-mode Load unpacked; explicit extension approval / site access may be required. No Opera Add-ons listing supplied.                                          |
-| Microsoft Edge (additional) | Shared Chromium MV3                                                       | `edge://extensions`                     | `Software\Microsoft\Edge\NativeMessagingHosts`, Chrome fallback      | Developer-mode Load unpacked; reload on update.                                                                                                                      |
+| Browser | Extension | Management page | Windows native-bootstrap lookup | Installation / update |
+| --- | --- | --- | --- | --- |
+| Helium | Chromium MV3, stable public key/ID | `chrome://extensions` | Chrome-compatible HKCU key, both x64 views | Load unpacked; reload the same folder. Windows Helium uses `chrome.exe` under `imput\Helium\Application`. |
+| Google Chrome | Chromium MV3 (Chrome 116+) | `chrome://extensions` | Google key, both x64 views | Developer-mode Load unpacked. No signed CRX/store listing is supplied. |
+| Chromium | Chromium MV3 | `chrome://extensions` | Chromium and Chrome-compatibility keys, both views | Load unpacked. Portable installs may need Locate browser. |
+| Brave | Chromium MV3 | `brave://extensions` | Brave and Chrome-compatibility keys, both views | Load unpacked; Shields/site-access settings can affect page detection. |
+| Mozilla Firefox | Separate MV2 background, Gecko ID and native permission | `about:debugging#/runtime/this-firefox` | Mozilla key, both x64 views | Unsigned temporary development add-on. Permanent installation requires Mozilla signing. |
+| Vivaldi | Chromium MV3 | `vivaldi://extensions` | Vivaldi and Chrome-compatibility keys, both views | Developer-mode Load unpacked; reload on update. |
+| Opera | Chromium MV3 | `opera://extensions` | Opera and Chrome-compatibility keys, both views | Load unpacked; explicit extension/site access may be required. No Opera Add-ons listing is supplied. |
+| Microsoft Edge | Chromium MV3 | `edge://extensions` | Edge and Chrome-compatibility keys, both views | Developer-mode Load unpacked; reload on update. |
 
 Minimum MV3 Chrome version reflects native / service-worker and WebSocket support; the current release is targeted at current desktop browsers. Compatibility is not the same as successful testing in each branded browser. See [test matrix](TESTING.md).
 
@@ -36,20 +36,20 @@ Relevant upstream source reviewed during the audit:
 - [Helium native-host Chrome fallback patch](https://github.com/imputnet/helium/blob/main/patches/helium/core/scan-chrome-native-messaging-hosts.patch) (its explicit POSIX-only patch is **not** assumed to implement Windows support; standard Windows Chromium Chrome lookup is used)
 - [Helium Windows branding / actual executable location](https://github.com/imputnet/helium-windows/blob/main/installer/helium.nsi)
 
-Forks may change lookup behavior. Native failures are reported; paired WebSocket is an explicit, authenticated alternative rather than a silent success claim.
+Forks may change native-host lookup behavior. That no longer blocks a prepared extension: authenticated loopback WebSocket is primary, and native discovery is only bootstrap/cold-start fallback.
 
 ## Chromium-family setup (Helium, Chrome, Chromium, Brave, Vivaldi, Opera, Edge)
 
-1. Open **GetANNY → Browser integration**. Select the actual browser.
-2. Click **Set up**. This writes a stable unpacked extension folder under app data and registers the native host for your user.
-3. Click **Open extensions page**, or enter the management URL above manually. If the executable was not detected, use **Locate browser**.
-4. Enable **Developer mode**, click **Load unpacked**, and choose the displayed extension folder. Confirm the requested permissions. Pin the toolbar icon.
-5. Open the GetANNY popup, click **Reconnect**, and check both popup and desktop for a verified **Native host** connection.
-6. Start an ordinary HTTP(S) download, or right-click a direct download link → **Download with GetANNY**. Ordinary downloads are paused before handoff; depending on your desktop preference the request is queued or opened for review. After acceptance, the paused native entry is cancelled and erased without using the browser's delete-file action.
+1. Install/start GetANNY, open **Browser integration**, and select the actual browser.
+2. Click **Set up**. This writes a stable browser-specific folder and random private direct credential under current-user app data. It also repairs native bootstrap as a fallback; executable detection does not decide whether setup runs.
+3. Click **Open extensions page**, or enter the management URL above manually. **Locate browser** is needed only to launch a nonstandard/portable executable, not to provision communication.
+4. Enable **Developer mode**, click **Load unpacked**, and choose the exact folder displayed by GetANNY. Confirm the requested permissions and pin the toolbar icon. Browser approval remains explicit.
+5. Open the GetANNY popup and click **Reconnect**. The expected status is **Direct bridge**. Both popup and desktop must show a verified connection; folder/registry existence alone is not success.
+6. Start an ordinary HTTP(S) download, or right-click a direct download link → **Download with GetANNY**. Ordinary downloads are paused before handoff; depending on your desktop preference the request is queued or opened for review. After acknowledgement, the paused native entry is cancelled and erased without using the browser's delete-file action.
 7. If confirmation is enabled, dismissing the review returns the native download to the browser. Accepting it keeps the desktop job associated with the browser transfer ID so reconnection cannot queue it twice.
 8. For a video page choose **Analyze media in GetANNY**, use the popup's media action, or the compact video overlay. Select a real format and destination in Media studio. “Sent for review” / “media page opened” does not mean a file has already downloaded. The overlay's X dismisses it for that video during the current page session.
 
-Alternatively extract the corresponding `GetANNY-<browser>-<version>.zip` from the Release to a permanent folder and load it there. Still run desktop setup to register the host. Keep the folder in place. Each ZIP shares the same reviewed scripts but carries the correct target-browser configuration and instructions. This is intentional code reuse, not seven separate placeholder extensions.
+Alternatively extract the corresponding `GetANNY-<browser>-<version>.zip` from a Release to a permanent folder and load it there. Generic release ZIPs intentionally contain no private credential. Run desktop setup first: on the first connection the generic extension securely requests its browser-specific direct credential through native bootstrap, persists it, and then uses the direct path. If native bootstrap is unavailable, enter the browser-specific recovery key shown by GetANNY. Keep the folder in place. Each ZIP shares the same reviewed scripts but carries the correct target-browser configuration and instructions.
 
 ### Updating
 
@@ -63,20 +63,22 @@ Development install: **about:debugging → This Firefox → Load Temporary Add-o
 
 Updates: reload the temporary add-on, or obtain a newly Mozilla-signed package through an authorized signing/store release process when one exists. Do not rename an unsigned ZIP to XPI and call it production signed.
 
-## Native messaging and fallback
+## Direct bridge, native bootstrap and recovery
 
-Host ID: `com.getanny.native`. Chromium extension ID: `oocncjjghijimkajhmdjcgdffkfojpbg` (derived from the checked-in **public** manifest key, not a signing private key).
+Host ID: `com.getanny.native`. Chromium extension ID: `oocncjjghijimkajhmdjcgdffkfojpbg` (derived from the checked-in **public** manifest key, not a signing private key). Firefox ID: `getanny@getanny.app`.
 
-On Windows a real compiled `GetANNY.NativeHost.exe` reads its adjacent protected-user configuration and launches the installed Electron runtime in Node mode. No external Node installation and no unsupported manifest `args` field. The JS host frames messages with four-byte little-endian lengths, authenticates locally, and forwards request IDs / real results. A browser-invoked native host may start GetANNY if the desktop app is not running.
+The bridge binds **only `127.0.0.1:29615`**. Protocol v2 uses separate random credentials for native bootstrap, manual recovery and every browser. It validates loopback Host/origin, binds a credential to the selected browser during hello, uses heartbeats/retry, and does not count a bare socket as connected. Websites and clients without a valid capability are rejected.
 
-The bridge binds **only `127.0.0.1:29615`**. It requires a per-user random secret, restricted origins, an extension hello and regular heartbeats. It does not count a bare socket as a connected extension. This is intentionally loopback-only; it is not a browser-facing localhost API inside the remote web preview.
+The prepared extension uses the direct credential immediately and automatically reconnects after service-worker/browser/desktop restart. Native Messaging is attempted only when no valid prepared/saved direct credential is available or direct connection fails long enough to require cold start.
 
-If native messaging fails, open **Need an alternative connection?** on the desktop. Reveal/copy the pairing key and paste it into the extension's **Connection & pairing** section. Select the actual browser, Save & connect. The key stays in your local user profile; never share it or commit it. Websites cannot use the bridge unauthenticated.
+On Windows, compiled `GetANNY.NativeHost.exe` reads its adjacent protected-user configuration and launches the installed Electron runtime in Node mode. No external Node installation and no unsupported manifest `args` field are used. The JavaScript broker frames messages with four-byte little-endian lengths, authenticates with its own native-only credential, and can return the calling browser's direct credential after an authenticated hello. Subsequent requests use WebSocket.
+
+If both direct setup and native bootstrap fail, open **Need an alternative connection?** in the desktop. Reveal/copy the recovery key for the selected browser and paste it into the extension's **Connection & pairing** section. Save and reconnect. The key stays in your local user profile; never share or commit it. Generic release ZIPs and source-controlled files contain no real credential.
 
 ## Permissions and limitations
 
-- `nativeMessaging`: invoke the local host.
-- `storage`: browser choice and optional pairing secret.
+- `nativeMessaging`: cold-start/bootstrap the local adapter when direct credentials are unavailable; it is not the normal transfer path.
+- `storage`: browser choice and that browser's local direct/recovery credential.
 - `tabs`: current page context and per-tab detections.
 - `contextMenus`: explicit link/media/page send actions.
 - `downloads`: observe ordinary native downloads, pause them before handoff, resume a rejected/dismissed request, and cancel/erase the native history entry after GetANNY accepts ownership. GetANNY does not request the browser's delete-file operation.
@@ -90,10 +92,11 @@ Blob URLs are not transferable files; the original page is analyzed instead. DRM
 
 ## Troubleshooting
 
-- **Host not found**: select the right browser and Set up again; native manifests must use the current installation path. Restart the popup / browser. Portable builds may have different lookup paths; use pairing if necessary.
+- **Host not found**: a prepared browser-specific folder should still connect directly. Select the right browser, click **Set up**, reload that exact unpacked folder, then Reconnect. For a generic ZIP, setup repairs native bootstrap across both registry views; recovery-key entry remains available.
 - **Permission denied**: approve extension site access. GetANNY does not bypass your browser's security UI.
-- **Key rejected**: copy the full current key from the same running desktop user's data directory. Do not reuse another account's key.
-- **No response**: start GetANNY, enable Browser integration in Settings, check port 29615 and connection status. Native port existence alone is not success.
+- **Credential rejected / wrong browser**: use the exact prepared folder for this browser, or copy the full current recovery key for the selected browser from the same Windows user. Credentials are deliberately browser-bound; do not reuse another browser/account's key.
+- **No response**: start GetANNY, enable Browser integration in Settings, check `127.0.0.1:29615`, reload the extension and Reconnect. A listening port or registry key alone is not success; look for an authenticated direct hello in both UIs.
+- **Worked before an upgrade/path change**: start the packaged app once to trigger repair, then reload the unpacked extension. Run `GetANNY.exe --setup-browser-hosts --quiet` for explicit repair and inspect `browser-setup-report.json`.
 - **Queued but no file yet**: check download status, the queue concurrency limit, auto-start preference, and whether confirmation is awaiting review in the desktop app.
 - **Browser download remains paused after a connection loss**: reopen GetANNY and the extension popup, then Reconnect. The extension reconciles the transfer ID before choosing desktop ownership or native resume. This pause is intentional duplicate protection, not a second active download.
 - **No detected media**: restricted browser pages, inaccessible/DRM players and some dynamically fetched streams are not downloadable. Send the original supported media page to analysis. See the actual error if the extractor rejects it.

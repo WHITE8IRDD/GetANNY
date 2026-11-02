@@ -3,6 +3,7 @@ if (typeof importScripts === "function")
   importScripts("config.js", "download-interceptor.js");
 const api = globalThis.browser || globalThis.chrome;
 const action = api.action || api.browserAction;
+const packagedConfig = globalThis.GETANNY_CONFIG || {};
 const pending = new Map();
 const detected = new Map();
 let nativePort,
@@ -11,12 +12,16 @@ let nativePort,
   connectResolve,
   connectReject,
   connectTimeout,
-  heartbeat;
+  heartbeat,
+  activeTransport,
+  attempt;
 let reconnectTimer;
 let reconnectAttempts = 0;
+let connectionGeneration = 0;
 let state = { connected: false, transport: null, error: null };
 let currentTheme = null;
-let browserId = globalThis.GETANNY_BROWSER || "chrome";
+let browserId =
+  packagedConfig.browserId || globalThis.GETANNY_BROWSER || "chrome";
 let pairingKey = "";
 let interceptor;
 const validUrl = (value) => {
@@ -26,6 +31,7 @@ const validUrl = (value) => {
     return false;
   }
 };
+const validPairingKey = (value) => /^[a-f0-9]{64}$/i.test(value || "");
 const hasHeader = (headers, name) =>
   Object.keys(headers || {}).some((key) => key.toLowerCase() === name);
 async function withSiteCookies(url, headers = {}) {
@@ -53,7 +59,7 @@ function update(next) {
 }
 function scheduleReconnect() {
   if (reconnectTimer) return;
-  const delay = Math.min(30000, 2000 * 2 ** Math.min(reconnectAttempts, 4));
+  const delay = Math.min(30000, 1500 * 2 ** Math.min(reconnectAttempts, 4));
   reconnectAttempts++;
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
@@ -71,9 +77,41 @@ function rejectPending(error) {
   }
   pending.clear();
 }
+function stopHeartbeat() {
+  clearInterval(heartbeat);
+  heartbeat = null;
+}
+function closeSocket() {
+  if (!socket) return;
+  const current = socket;
+  socket = null;
+  current.onopen = null;
+  current.onmessage = null;
+  current.onerror = null;
+  current.onclose = null;
+  try {
+    current.close();
+  } catch {
+    /* already closed */
+  }
+}
+function closeNative() {
+  if (!nativePort) return;
+  const current = nativePort;
+  nativePort = null;
+  try {
+    current.disconnect();
+  } catch {
+    /* already disconnected */
+  }
+}
 function sendRaw(message) {
-  if (nativePort) nativePort.postMessage(message);
-  else if (socket?.readyState === WebSocket.OPEN)
+  if (activeTransport === "native" && nativePort)
+    nativePort.postMessage(message);
+  else if (
+    activeTransport === "websocket" &&
+    socket?.readyState === WebSocket.OPEN
+  )
     socket.send(JSON.stringify(message));
   else throw new Error("GetANNY is not connected.");
 }
@@ -84,6 +122,7 @@ function hello() {
     browserId,
     extensionId: api.runtime.id,
     version: api.runtime.getManifest().version,
+    protocol: 2,
   });
 }
 function applyTheme(theme) {
@@ -93,6 +132,41 @@ function applyTheme(theme) {
     () => {},
   );
   interceptor?.theme?.(theme);
+}
+function connectionReady(message) {
+  clearTimeout(connectTimeout);
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  reconnectAttempts = 0;
+  if (validPairingKey(message.pairingToken)) {
+    // A successful browser-brokered native handshake can securely bootstrap
+    // the direct credential. All later reconnects bypass registry discovery.
+    pairingKey = message.pairingToken;
+    api.storage.local
+      .set({
+        pairingKey,
+        browserId,
+        pairingOverride: false,
+        provisionedProtocol: 2,
+      })
+      .catch(() => {});
+  }
+  update({ connected: true, transport: message.transport, error: null });
+  if (message.theme) applyTheme(message.theme);
+  connectResolve?.(state);
+  connecting = null;
+  connectResolve = null;
+  connectReject = null;
+  attempt = null;
+  stopHeartbeat();
+  heartbeat = setInterval(() => {
+    try {
+      sendRaw({ type: "ping", requestId: requestId() });
+    } catch {
+      connectionLost("Desktop connection lost.");
+    }
+  }, 25000);
+  interceptor?.reconnect().catch((error) => update({ error: error.message }));
 }
 function deliver(message) {
   if (message.type === "theme") {
@@ -122,30 +196,33 @@ function deliver(message) {
     return;
   }
   if (message.type === "hello-result" && message.success) {
-    clearTimeout(connectTimeout);
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-    reconnectAttempts = 0;
-    update({ connected: true, transport: message.transport, error: null });
-    if (message.theme) applyTheme(message.theme);
-    connectResolve?.(state);
-    connecting = null;
-    connectResolve = null;
-    connectReject = null;
-    clearInterval(heartbeat);
-    heartbeat = setInterval(() => {
-      try {
-        sendRaw({ type: "ping", requestId: requestId() });
-      } catch {
-        disconnected("Desktop connection lost.");
-      }
-    }, 25000);
-    interceptor?.reconnect().catch((error) => update({ error: error.message }));
+    connectionReady(message);
+  } else if (message.type === "transport-error") {
+    // The native launcher stays alive while it starts/reconnects the desktop.
+    // Keep the attempt open rather than tearing down the only cold-start path.
+    update({
+      connected: false,
+      error: message.error || "Desktop bridge unavailable.",
+    });
+    if (!connecting) connectionLost(state.error);
+    return;
+  } else if (message.type === "authentication-error") {
+    transportFailed(
+      activeTransport,
+      message.error || "Desktop authentication failed.",
+      connectionGeneration,
+    );
+    return;
   } else if (
-    message.type === "transport-error" ||
-    message.type === "authentication-error"
+    message.type === "error" &&
+    connecting &&
+    !pending.has(message.requestId)
   ) {
-    disconnected(message.error || "Desktop bridge unavailable.");
+    transportFailed(
+      activeTransport,
+      message.error || "Desktop handshake failed.",
+      connectionGeneration,
+    );
     return;
   }
   const entry = pending.get(message.requestId);
@@ -162,104 +239,184 @@ function deliver(message) {
     }
   }
 }
-function disconnected(error) {
-  clearInterval(heartbeat);
-  update({ connected: false, transport: null, error });
+function connectionLost(error) {
+  stopHeartbeat();
+  activeTransport = null;
+  closeSocket();
+  closeNative();
+  update({ connected: false, transport: null, error: error?.message || error });
   rejectPending(error);
   interceptor?.disconnected().catch(() => {});
   scheduleReconnect();
 }
-function connectWebSocket() {
-  if (!pairingKey) {
-    connectReject?.(
-      new Error(
-        state.error ||
-          "Native host not available. Run browser setup in GetANNY, or enter its pairing key.",
-      ),
-    );
-    clearTimeout(connectTimeout);
-    connecting = null;
-    connectResolve = null;
-    connectReject = null;
+function failAttempt(error) {
+  const failure = error instanceof Error ? error : new Error(String(error));
+  clearTimeout(connectTimeout);
+  update({ connected: false, transport: null, error: failure.message });
+  const reject = connectReject;
+  connecting = null;
+  connectResolve = null;
+  connectReject = null;
+  attempt = null;
+  activeTransport = null;
+  reject?.(failure);
+  scheduleReconnect();
+}
+function resetConnection(reason = "Connection restarted.") {
+  connectionGeneration++;
+  clearTimeout(connectTimeout);
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  stopHeartbeat();
+  closeSocket();
+  closeNative();
+  const reject = connectReject;
+  connecting = null;
+  connectResolve = null;
+  connectReject = null;
+  attempt = null;
+  activeTransport = null;
+  update({ connected: false, transport: null });
+  reject?.(new Error(reason));
+}
+function transportFailed(kind, error, generation) {
+  if (generation !== connectionGeneration) return;
+  if (state.connected) {
+    if (kind === "websocket") closeSocket();
+    else if (kind === "native") closeNative();
+    activeTransport = null;
+    connectionLost(error);
     return;
   }
-  if (socket) {
-    socket.onclose = null;
-    socket.close();
+  if (!connecting || !attempt) return;
+  update({ error: error?.message || error });
+  if (kind === "websocket") closeSocket();
+  if (kind === "native") closeNative();
+  if (!attempt.triedNative) {
+    startNative(generation);
+    return;
   }
-  socket = new WebSocket("ws://127.0.0.1:29615");
-  socket.onopen = () =>
-    socket.send(
+  if (pairingKey && !attempt.triedWebSocket) {
+    startWebSocket(generation);
+    return;
+  }
+  failAttempt(error || "GetANNY desktop bridge is unavailable.");
+}
+function startWebSocket(generation) {
+  if (!pairingKey || generation !== connectionGeneration) {
+    transportFailed(
+      "websocket",
+      "No direct bridge credential is available.",
+      generation,
+    );
+    return;
+  }
+  attempt.triedWebSocket = true;
+  closeNative();
+  closeSocket();
+  activeTransport = "websocket";
+  const port = Number(packagedConfig.port) || 29615;
+  const current = new WebSocket(`ws://127.0.0.1:${port}`);
+  socket = current;
+  let socketError =
+    "Could not reach GetANNY. Start the desktop app and try again.";
+  current.onopen = () => {
+    if (generation !== connectionGeneration || socket !== current) return;
+    current.send(
       JSON.stringify({
         type: "authenticate",
         token: pairingKey,
         transport: "websocket",
+        protocol: 2,
       }),
     );
-  socket.onmessage = (event) => {
+  };
+  current.onmessage = (event) => {
+    if (generation !== connectionGeneration || socket !== current) return;
     try {
       const message = JSON.parse(event.data);
       if (message.type === "authenticated") hello();
       else deliver(message);
     } catch {
-      disconnected("Invalid desktop response.");
+      transportFailed("websocket", "Invalid desktop response.", generation);
     }
   };
-  socket.onerror = () =>
-    update({
-      error:
-        "Could not reach GetANNY. Start the desktop app and check Browser integration.",
-    });
-  socket.onclose = () => {
-    disconnected(state.error || "Desktop connection closed.");
-    connectReject?.(new Error(state.error));
-    connecting = null;
-    connectResolve = null;
-    connectReject = null;
+  current.onerror = () => {
+    socketError =
+      "Could not reach GetANNY directly. Trying the browser native bootstrap…";
   };
+  current.onclose = () => {
+    if (socket === current) socket = null;
+    transportFailed("websocket", socketError, generation);
+  };
+}
+function startNative(generation) {
+  if (generation !== connectionGeneration) return;
+  attempt.triedNative = true;
+  closeSocket();
+  closeNative();
+  activeTransport = "native";
+  try {
+    const port = api.runtime.connectNative("com.getanny.native");
+    nativePort = port;
+    port.onMessage.addListener((message) => {
+      if (generation === connectionGeneration && nativePort === port)
+        deliver(message);
+    });
+    port.onDisconnect.addListener(() => {
+      if (nativePort !== port) return;
+      const error =
+        api.runtime.lastError?.message || "Native host disconnected.";
+      nativePort = null;
+      transportFailed("native", error, generation);
+    });
+    hello();
+  } catch (error) {
+    nativePort = null;
+    transportFailed("native", error, generation);
+  }
 }
 async function connect() {
   if (state.connected) return state;
   if (connecting) return connecting;
-  const saved = await api.storage.local.get(["browserId", "pairingKey"]);
-  browserId = saved.browserId || globalThis.GETANNY_BROWSER || "chrome";
-  pairingKey = saved.pairingKey || "";
+  const saved = await api.storage.local.get([
+    "browserId",
+    "pairingKey",
+    "pairingOverride",
+  ]);
+  browserId =
+    packagedConfig.browserId ||
+    saved.browserId ||
+    globalThis.GETANNY_BROWSER ||
+    "chrome";
+  pairingKey =
+    saved.pairingOverride === true && validPairingKey(saved.pairingKey)
+      ? saved.pairingKey
+      : validPairingKey(packagedConfig.pairingToken)
+        ? packagedConfig.pairingToken
+        : validPairingKey(saved.pairingKey)
+          ? saved.pairingKey
+          : "";
   if (connecting) return connecting;
+  const generation = ++connectionGeneration;
+  attempt = { generation, triedWebSocket: false, triedNative: false };
   connecting = new Promise((resolve, reject) => {
     connectResolve = resolve;
     connectReject = reject;
   });
   const result = connecting;
   connectTimeout = setTimeout(() => {
-    disconnected(
-      "No handshake from GetANNY. Start the app, register the host, or use a pairing key.",
+    if (generation !== connectionGeneration) return;
+    closeSocket();
+    closeNative();
+    failAttempt(
+      "No authenticated handshake from GetANNY. Start the app, refresh this browser's prepared package, or use its recovery key.",
     );
-    connectReject?.(new Error(state.error));
-    connecting = null;
-    connectResolve = null;
-    connectReject = null;
-    nativePort?.disconnect();
-    nativePort = null;
-  }, 8000);
-  try {
-    if (nativePort) nativePort.disconnect();
-    const port = api.runtime.connectNative("com.getanny.native");
-    nativePort = port;
-    port.onMessage.addListener(deliver);
-    port.onDisconnect.addListener(() => {
-      if (nativePort !== port) return;
-      const error =
-        api.runtime.lastError?.message || "Native host disconnected.";
-      nativePort = null;
-      disconnected(error);
-      if (connecting) connectWebSocket();
-    });
-    hello();
-  } catch (error) {
-    nativePort = null;
-    update({ error: error.message });
-    connectWebSocket();
-  }
+  }, 20000);
+  // Provisioned/saved credentials make the registry-free path primary. Native
+  // messaging remains a cold-start and migration bootstrap only.
+  if (pairingKey) startWebSocket(generation);
+  else startNative(generation);
   return result;
 }
 async function request(message) {
@@ -316,23 +473,12 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
   const ui = sender.url?.startsWith(api.runtime.getURL(""));
   (async () => {
     if (message.type === "status") {
-      if (!state.connected && !nativePort)
+      if (!state.connected && !connecting)
         connect().catch((error) => update({ error: error.message }));
-      return { ...state, browserId };
+      return { ...state, browserId, protocol: 2 };
     }
     if (message.type === "reconnect" && ui) {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = null;
-      if (nativePort) {
-        nativePort.disconnect();
-        nativePort = null;
-      }
-      if (socket) {
-        socket.onclose = null;
-        socket.close();
-        socket = null;
-      }
-      update({ connected: false });
+      resetConnection("Manual reconnect requested.");
       return connect();
     }
     if (message.type === "configure" && ui) {
@@ -356,12 +502,9 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
       await api.storage.local.set({
         browserId: message.browserId,
         pairingKey: message.pairingKey.trim(),
+        pairingOverride: Boolean(message.pairingKey.trim()),
       });
-      if (nativePort) {
-        nativePort.disconnect();
-        nativePort = null;
-      }
-      update({ connected: false });
+      resetConnection("Connection settings changed.");
       return connect();
     }
     if (message.type === "media-detected") {

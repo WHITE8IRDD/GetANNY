@@ -9,9 +9,10 @@ Requirements: Windows 10/11 x64, ordinary user account, writable destination/dow
 1. Download **GetANNY Setup.exe** OR **GetANNY Setup.msi** and `SHA256SUMS.txt` from the same GitHub Release.
 2. In PowerShell run `Get-FileHash '.\GetANNY Setup.exe' -Algorithm SHA256` (or the MSI path); compare with the checksum file.
 3. Run the installer. Choose your install location and desktop-shortcut preference. Start Menu integration is included.
-4. Open GetANNY. Choose a browser in the onboarding screen, prepare its connection, and follow the browser's required approval steps.
-5. Open the extension popup and Reconnect. A verified connection proves communication; a copied folder does not.
-6. Add a direct file URL, or analyze a supported media page and choose its format in Media studio.
+4. Open GetANNY → **Browser integration**, select your browser, and click **Set up** (the installer normally completed this already).
+5. Open the browser's extension-management page and approve/load the prepared folder displayed by GetANNY. Browser consent cannot be automated safely.
+6. Open the extension popup and click **Reconnect**. The prepared extension authenticates directly; a generic release ZIP securely bootstraps once through the native adapter. A verified handshake—not a copied folder or registry key—proves communication.
+7. Add a direct file URL, intercept a browser download, or analyze a supported media page and choose its format in Media studio.
 
 Unless release evidence says Authenticode **Valid**, these packages are unsigned. Branding is not signing. SmartScreen reputation warnings may occur. No certificate was provided during this session.
 
@@ -30,15 +31,15 @@ Start-Process '.\GetANNY Setup.exe' -ArgumentList '/S','/currentuser','/D=C:\App
 msiexec /i "GetANNY Setup.msi" /qn /norestart APPLICATIONFOLDER="C:\Apps\GetANNY" ALLUSERS=2 MSIINSTALLPERUSER=1 GETANNY_DESKTOP_SHORTCUT=1
 ```
 
-Use one format. Do not install EXE and MSI side-by-side: their uninstall/upgrade mechanisms differ. Native messaging is registered in **HKCU only**, for the user running setup. On shared machines each user completes browser setup in their own account. No browser extension is silently installed. No enterprise policy, profile edits, credential collection or admin-only registration is used.
+Use one format. Do not install EXE and MSI side-by-side: their uninstall/upgrade mechanisms differ. Browser credentials and native fallback are provisioned in **HKCU/current-user app data** for the user running setup. On x64 Windows, native-host keys are written in both 64-bit and 32-bit registry views so browser/process bitness does not decide discovery. On shared machines each user completes browser setup in their own account. No browser extension is silently installed. No enterprise policy, profile edits, credential collection or admin-only registration is used.
 
-Installer preparation failures are written to `browser-setup-report.json` in the app-data directory and can be repaired in **Browser integration → Set up**. The application is not falsely labeled connected on installation.
+The installer invokes a standalone provisioner that does not open SQLite, start downloads or claim the fixed bridge port. It prepares all supported browsers even when executable detection finds none. Failures are written to `browser-setup-report.json` in the app-data directory; MSI installation fails rather than silently ignoring a failed custom action, and NSIS reports a repairable warning. Packaged startup also repairs stale version/path provisioning. The application is not falsely labeled connected until an authenticated extension hello succeeds.
 
 ## Upgrade, repair and uninstall
 
 - Close GetANNY before upgrading. Use the same installer format and installation directory.
 - SQLite migrates the existing v1 table with an additive metadata column. Settings and history are retained. Older transfers without safe entity/segment metadata may need to restart; they are not blindly appended to different files.
-- Native registration and prepared extension files are refreshed. Reload unpacked extensions on the browser extensions page to apply updated scripts. Firefox temporary add-ons must be loaded again after browser restart.
+- Browser-scoped credentials, prepared extension files and native fallback registration are refreshed. A version/install-path marker triggers automatic repair on the next packaged start if installer setup was stale. Reload unpacked extensions on the browser extensions page to apply updated scripts. Firefox temporary add-ons must be loaded again after browser restart.
 - Uninstall from Windows Settings → Apps or use the EXE uninstaller / `msiexec /x "GetANNY Setup.msi"`.
 - Native-host registrations owned by this application and prepared connection files are removed. Settings/history/downloaded files are preserved intentionally. Close browsers first so native executables are not locked.
 - Remove the unpacked browser add-on through each browser's UI. GetANNY cannot and does not manipulate personal browser profiles during uninstall.
