@@ -1,12 +1,14 @@
-# GetANNY 2.3.0 pull-request verification status
+# GetANNY 2.3.0 release status
 
-- Source version: 2.3.0, based on repository `main` after the latest official v2.2.5 release and the newer unpublished 2.2.6 source changes.
-- Linux source suite: **125/125 passed with no skips** for this worktree, using real local HTTP/HTTPS, SQLite, yt-dlp/FFmpeg fixtures, authenticated native framing and direct bridge restart/reconnect coverage. See `TESTING.md` for exact scope.
-- Production renderer and all eight generic 2.3.0 extension packages built successfully. Automated coverage verifies that generic artifacts contain no private bridge credential.
+- Source version: 2.3.0 at merged `main` commit `0cc4045f011231d8e626eac1a4c5acd4926ac482`, after the latest published v2.2.5 and unpublished 2.2.6 source changes.
+- Source/backend, compiled launcher, renderer, packaging and all eight generic extension-package stages passed before the immutable Windows artifact was retained. Generic extension artifacts contain no private bridge credential.
+- Measured follow-up evidence completed EXE and MSI install/reinstall/uninstall, retained user history/settings and removed owned integration state. The overall browser matrix remained non-green, so this is not a fully passing automated result.
+- At the repository owner's explicit direction, publication proceeds from the existing main-commit artifact without waiting for further lengthy GitHub Actions installation/browser runs. Manual Windows testing is required.
+- The retained artifact does not contain `latest.yml` or the NSIS block map; this publication supports manual downloads rather than the in-app auto-update feed.
+- Automated checks intentionally not required for publication include the remaining/current browser-matrix rerun. Consumer-PC interactive approval, permanent signed Firefox installation, old-v1 upgrade, store delivery and code-signing validation remain manual/unavailable.
 - `npm audit --audit-level=high` passed the configured gate and reported 15 moderate development/packaging-tree advisories.
-- Windows EXE/MSI packaging, install/reinstall/uninstall, compiled C# launcher, actual extension reconnect across installed-desktop restart and branded-browser matrix: **not yet executed for this change**. A pull request or workflow definition is not a passing result.
-- No v2.3.0 tag, GitHub release, installer bundle or final download link has been published.
-- Windows packages produced by repository CI are unsigned unless an authorized signing certificate is supplied; signature status must be taken from exact-run evidence.
+- Windows packages are unsigned because no authorized signing certificate was supplied. Windows may display SmartScreen or publisher warnings.
+- The release's `MEASURED_RESULTS.md`, `PROVENANCE.json`, `WINDOWS_VERIFICATION_STATUS.json`, checksums and raw evidence record the actual result; publication must not be interpreted as certification.
 
 ---
 
