@@ -2046,6 +2046,39 @@ html.theme-transition *::after {
   font-size: 12px;
   line-height: 1.7;
 }
+.install-guide-body {
+  max-height: min(62vh, 520px);
+  overflow-y: auto;
+}
+.install-guide-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+  color: var(--secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.install-guide-list li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+.install-guide-notes {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+.install-guide-notes p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.install-guide-notes strong {
+  color: var(--text);
+}
 .dialog-footer {
   padding: 16px 25px;
   border-top: 1px solid var(--line-soft);
@@ -3334,6 +3367,33 @@ html.theme-transition *::after {
   width: 12px;
   height: 12px;
 }
+.extension-folder-actions {
+  animation: extension-actions-nudge 700ms ease-out 1;
+}
+.install-guide-button {
+  min-height: 27px;
+  padding: 5px 8px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.install-guide-button svg {
+  width: 12px;
+  height: 12px;
+}
+@keyframes extension-actions-nudge {
+  0% {
+    transform: translateY(3px);
+    opacity: 0.88;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+[data-motion="reduced"] .extension-folder-actions,
+[data-motion="disabled"] .extension-folder-actions {
+  animation: none;
+}
 .verification {
   display: flex;
   align-items: center;
@@ -3552,6 +3612,21 @@ html.theme-transition *::after {
 .setting-control > .button svg {
   width: 14px;
   height: 14px;
+}
+.update-check-control {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  max-width: 260px;
+}
+.update-check-control .button {
+  font-size: 10px;
+  min-height: 32px;
+}
+.update-check-result {
+  color: var(--muted);
+  font-size: 10px;
+  text-align: right;
 }
 .setting-control select {
   min-width: 170px;
@@ -5504,6 +5579,7 @@ html.theme-transition *::after {
 }
 .update-banner > div {
   display: grid;
+  flex: 1;
   gap: 4px;
 }
 .update-banner strong {
@@ -5513,43 +5589,4 @@ html.theme-transition *::after {
 .update-banner span {
   color: var(--muted);
   font-size: 12px;
-}
-.update-error-toast {
-  position: fixed;
-  right: 20px;
-  bottom: 52px;
-  z-index: 120;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: min(420px, calc(100vw - 40px));
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--raised);
-  box-shadow: 0 12px 34px rgb(0 0 0 / 28%);
-}
-.update-error-copy {
-  display: grid;
-  flex: 1;
-  min-width: 0;
-  gap: 3px;
-}
-.update-error-copy strong {
-  color: var(--text);
-  font-size: 12px;
-}
-.update-error-copy span {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.4;
-}
-@media (max-width: 480px) {
-  .update-error-toast {
-    right: 10px;
-    bottom: 46px;
-    width: calc(100vw - 20px);
-    gap: 8px;
-    padding: 9px;
-  }
 }

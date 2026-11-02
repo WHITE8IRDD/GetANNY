@@ -1,6 +1,6 @@
 {
   "name": "GetANNY · Browser Assistant",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Send files and supported media pages to your GetANNY desktop download manager. Authenticated local desktop connection with automatic reconnection and explicit user control.",
   "permissions": [
     "storage",

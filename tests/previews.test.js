@@ -52,6 +52,39 @@ test("completed previews are generated once per file version and cached as bound
   assert.equal(cache.filter((name) => name.endsWith(".jpg")).length, 2);
 });
 
+test("application downloads use their embedded operating-system icon when available", async (t) => {
+  const dir = await temporary(t);
+  const file = path.join(dir, "BraveBrowserSetup.exe");
+  await fs.writeFile(file, Buffer.from("installer"));
+  let requestedPath;
+  const service = new PreviewService({
+    userDataPath: dir,
+    getFileIcon: async (source, options) => {
+      requestedPath = source;
+      assert.deepEqual(options, { size: "large" });
+      return {
+        isEmpty: () => false,
+        resize: (size) => {
+          assert.deepEqual(size, { width: 160, height: 100, quality: "best" });
+          return { toJPEG: () => Buffer.from("embedded-app-icon") };
+        },
+      };
+    },
+  });
+  t.after(() => service.close());
+  const result = await service.get({
+    id: "brave-installer",
+    status: "completed",
+    category: "Applications",
+    filePath: file,
+  });
+  assert.equal(requestedPath, file);
+  assert.equal(
+    result.url,
+    `data:image/jpeg;base64,${Buffer.from("embedded-app-icon").toString("base64")}`,
+  );
+});
+
 test("REAL FFmpeg preview extracts a small cached JPEG without loading the video into memory", async (t) => {
   const fixture = await mediaFixture(t);
   if (!fixture) return;

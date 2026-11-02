@@ -20,7 +20,13 @@ import {
 import { FaChrome, FaFirefoxBrowser, FaOpera, FaEdge } from "react-icons/fa6";
 import { SiBrave, SiVivaldi } from "react-icons/si";
 import { api, errorMessage } from "../api";
-import { Button, ErrorBanner, IconButton, PageHeader } from "../components/ui";
+import {
+  Button,
+  Dialog,
+  ErrorBanner,
+  IconButton,
+  PageHeader,
+} from "../components/ui";
 import useUIStore from "../stores/useUIStore";
 import useSettingsStore from "../stores/useSettingsStore";
 import { useI18n } from "../i18n/useI18n";
@@ -44,7 +50,8 @@ export default function BrowserPage({ active = true }) {
     [refreshing, setRefreshing] = useState(false),
     [error, setError] = useState(""),
     [prepared, setPrepared] = useState(null),
-    [pairing, setPairing] = useState("");
+    [pairing, setPairing] = useState(""),
+    [showInstallGuide, setShowInstallGuide] = useState(false);
   const refresh = useCallback(async (visible = false) => {
     if (visible) setRefreshing(true);
     try {
@@ -323,7 +330,7 @@ export default function BrowserPage({ active = true }) {
                 </span>
               </div>
               {packagePath && (
-                <div className="path-box">
+                <div className="path-box extension-folder-actions">
                   <code>{packagePath}</code>
                   <IconButton
                     label={t("browser.copyFolder")}
@@ -340,6 +347,13 @@ export default function BrowserPage({ active = true }) {
                   >
                     <LuFolderOpen />
                   </IconButton>
+                  <Button
+                    icon={LuCircleHelp}
+                    className="install-guide-button"
+                    onClick={() => setShowInstallGuide(true)}
+                  >
+                    {t("browser.installGuide")}
+                  </Button>
                 </div>
               )}
               {prepared?.browserId === selected && prepared.nativeError && (
@@ -480,6 +494,46 @@ export default function BrowserPage({ active = true }) {
           <p className="muted">{t("browser.altNote")}</p>
         </div>
       </details>
+      {showInstallGuide && (
+        <Dialog
+          title={t("browser.installGuide")}
+          description={t("browser.installGuideDescription", {
+            name: browser?.name || t("browser.connectFallback"),
+          })}
+          onClose={() => setShowInstallGuide(false)}
+        >
+          <div className="dialog-body install-guide-body">
+            <ol className="install-guide-list">
+              <li>
+                {t("browser.installStep1", {
+                  page: browser?.extensionsPage || "chrome://extensions",
+                })}
+              </li>
+              <li>{t("browser.installStep2")}</li>
+              <li>{t("browser.installStep3")}</li>
+              <li>{t("browser.installStep4")}</li>
+              <li>
+                {t("browser.installStep5", { name: browser?.name || selected })}
+              </li>
+              <li>{t("browser.installStep6")}</li>
+              <li>{t("browser.installStep7")}</li>
+            </ol>
+            <div className="install-guide-notes">
+              <p>
+                <strong>{t("browser.copyFolder")}</strong>{" "}
+                {t("browser.copyFolderHelp")}
+              </p>
+              <p>
+                <strong>{t("browser.openFolder")}</strong>{" "}
+                {t("browser.openFolderHelp")}
+              </p>
+              {selected === "firefox" && (
+                <p className="muted">{t("browser.firefoxTemporaryNote")}</p>
+              )}
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ const {
   Notification,
   nativeImage,
   clipboard,
+  net,
 } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs/promises");
@@ -312,6 +313,7 @@ async function init() {
     appPath: process.execPath,
     isPackaged: app.isPackaged,
     nativeImage,
+    getFileIcon: app.getFileIcon.bind(app),
     port: selfTest ? 0 : 29615,
     startTransfers: true,
     onSettingChange: async (key, value) => {
@@ -365,6 +367,8 @@ async function init() {
   ) {
     updater = configureAutoUpdater({
       mainWindow: () => win,
+      currentVersion: app.getVersion(),
+      fetchAsset: net.fetch.bind(net),
       logger: log,
     });
   }

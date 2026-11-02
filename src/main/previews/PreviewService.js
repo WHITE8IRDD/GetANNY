@@ -8,10 +8,16 @@ const MAX_CACHE_BYTES = 64 * 1024 * 1024;
 const MAX_CACHE_FILES = 500;
 
 class PreviewService {
-  constructor({ userDataPath, binPath, nativeImage = null } = {}) {
+  constructor({
+    userDataPath,
+    binPath,
+    nativeImage = null,
+    getFileIcon = null,
+  } = {}) {
     this.folder = path.join(userDataPath, "preview-cache");
     this.binPath = binPath;
     this.nativeImage = nativeImage;
+    this.getFileIcon = getFileIcon;
     this.pending = new Map();
     this.queue = Promise.resolve();
     this.children = new Set();
@@ -35,7 +41,11 @@ class PreviewService {
       await fs.mkdir(this.folder, { recursive: true });
       const temporary = path.join(this.folder, `${key}.${process.pid}.tmp.jpg`);
       try {
-        const native = await this.nativePreview(item.filePath);
+        const native =
+          item.category === "Applications"
+            ? (await this.applicationIcon(item.filePath)) ||
+              (await this.nativePreview(item.filePath))
+            : await this.nativePreview(item.filePath);
         if (native) await fs.writeFile(temporary, native);
         else if (!(await this.ffmpegPreview(item, temporary)))
           return { url: null };
@@ -80,6 +90,20 @@ class PreviewService {
       });
       if (!image || image.isEmpty()) return null;
       const data = image.toJPEG(76);
+      return data.length && data.length <= MAX_RESPONSE_BYTES ? data : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async applicationIcon(filePath) {
+    if (!this.getFileIcon) return null;
+    try {
+      const image = await this.getFileIcon(filePath, { size: "large" });
+      if (!image || image.isEmpty()) return null;
+      const data = image
+        .resize({ width: 160, height: 100, quality: "best" })
+        .toJPEG(76);
       return data.length && data.length <= MAX_RESPONSE_BYTES ? data : null;
     } catch {
       return null;

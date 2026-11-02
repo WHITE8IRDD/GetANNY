@@ -149,7 +149,17 @@ function Sidebar({ bridge, version, platform }) {
       <div className="sidebar-bottom">
         <button
           className="save-location"
-          onClick={() => setTab("settings")}
+          onClick={async () => {
+            try {
+              const folder = await api.invoke("dialog:select-folder");
+              if (folder)
+                await useSettingsStore
+                  .getState()
+                  .save("defaultDownloadPath", folder);
+            } catch (error) {
+              useUIStore.getState().notify(errorMessage(error), "error");
+            }
+          }}
           title={settings.defaultDownloadPath}
         >
           <LuFolderOpen />
@@ -315,7 +325,13 @@ export default function App() {
     }),
     [maximized, setMaximized] = useState(false);
   const [update, setUpdate] = useState({ status: "idle" });
-  const [updateErrorDismissed, setUpdateErrorDismissed] = useState(false);
+  const [dismissedUpdate, setDismissedUpdate] = useState(() => {
+    try {
+      return localStorage.getItem("getanny.dismissed-update") || "";
+    } catch {
+      return "";
+    }
+  });
   const tab = useUIStore((state) => state.activeTab),
     addModal = useUIStore((state) => state.addModal),
     setAddModal = useUIStore((state) => state.setAddModal),
@@ -345,7 +361,6 @@ export default function App() {
       setBridge(data.bridge);
       const initialUpdate = data.update || { status: "idle" };
       setUpdate(initialUpdate);
-      setUpdateErrorDismissed(false);
       setBoot(data);
       for (const request of data.pendingRequests)
         useUIStore.getState().addRequest(request);
@@ -371,7 +386,6 @@ export default function App() {
     );
     const stopUpdates = api.on("update:status", (nextUpdate) => {
       setUpdate(nextUpdate);
-      if (nextUpdate.status !== "error") setUpdateErrorDismissed(false);
     });
     return () => {
       cleanup();
@@ -382,7 +396,7 @@ export default function App() {
     try {
       await api.invoke(`updates:${action}`);
     } catch (error) {
-      useUIStore.getState().notify(errorMessage(error), "error");
+      useUIStore.getState().notify(t("updates.failed"), "error");
     }
   };
   useEffect(() => {
@@ -673,7 +687,10 @@ export default function App() {
             />
             <main className="main-content" id="main-content">
               {boot.capabilities.updates &&
-                !["idle", "current", "unavailable", "error"].includes(update.status) && (
+                ["available", "downloading", "downloaded"].includes(
+                  update.status,
+                ) &&
+                update.version !== dismissedUpdate && (
                   <div className="update-banner" role="status">
                     <div>
                       <strong>
@@ -687,7 +704,7 @@ export default function App() {
                               ? t("updates.downloaded", {
                                   version: update.version,
                                 })
-                          : t("updates.checking")}
+                              : t("updates.checking")}
                       </strong>
                       <span>{t("updates.githubChannel")}</span>
                     </div>
@@ -707,25 +724,25 @@ export default function App() {
                         {t("updates.restartButton")}
                       </Button>
                     )}
+                    <IconButton
+                      label={t("common.closeDialog")}
+                      onClick={() => {
+                        const version = update.version || "";
+                        setDismissedUpdate(version);
+                        try {
+                          localStorage.setItem(
+                            "getanny.dismissed-update",
+                            version,
+                          );
+                        } catch {
+                          // The notification still stays dismissed for this session.
+                        }
+                      }}
+                    >
+                      <LuX />
+                    </IconButton>
                   </div>
                 )}
-              {boot.capabilities.updates && update.status === "error" && !updateErrorDismissed && (
-                <aside className="update-error-toast" role="status">
-                  <div className="update-error-copy">
-                    <strong>{t("updates.error")}</strong>
-                    <span>{t("updates.githubChannel")}</span>
-                  </div>
-                  <Button onClick={() => updateAction("check")}>
-                    {t("updates.retryButton")}
-                  </Button>
-                  <IconButton
-                    label={t("common.closeDialog")}
-                    onClick={() => setUpdateErrorDismissed(true)}
-                  >
-                    <LuX />
-                  </IconButton>
-                </aside>
-              )}
               {!api.desktop && (
                 <div className="preview-strip">
                   <LuMonitor />

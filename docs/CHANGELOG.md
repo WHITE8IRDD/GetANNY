@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.1 — Reliable updates and clearer browser setup
+
+- Update checks now compare semantic versions, verify that the Setup EXE asset exists, and fail quietly when GitHub metadata or assets are unavailable.
+- Added a Check for Updates control in Settings, clear up-to-date feedback, and version-specific dismissal for update notices.
+- The sidebar download-location control opens the folder picker directly and saves the selected destination used by browser downloads.
+- Added a compact, dismissible browser-extension installation guide and a restrained one-time cue for the folder actions.
+- Completed application downloads can display the icon embedded in the downloaded installer, with the existing generic icon as fallback.
+- Kept tray mode's renderer-release behavior and persistent browser/download services intact.
+
 ## 2.2.2 — Cairo, tray idle, and responsive audio control
 
 - Bundled the Cairo variable font and OFL license; Arabic UI now uses Cairo without requiring a system font install.

@@ -47,6 +47,7 @@ async function createServices({
   isPackaged = false,
   isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_FILE),
   nativeImage = null,
+  getFileIcon = null,
   port = 29615,
   onSettingChange = async () => {},
   onBrowserRequest = () => {},
@@ -72,7 +73,12 @@ async function createServices({
     },
   });
   const mediaDetector = new MediaDetector({ binPath });
-  const previews = new PreviewService({ userDataPath, binPath, nativeImage });
+  const previews = new PreviewService({
+    userDataPath,
+    binPath,
+    nativeImage,
+    getFileIcon,
+  });
   let manager, wsServer;
   manager = new DownloadManager({
     settings: settings.getAll(),

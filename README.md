@@ -31,19 +31,19 @@ GetANNY brings everyday downloads into one desktop workspace. Manage file transf
 
 ## Download GetANNY
 
-<sub>Current stable release: **2.2.5** · Windows 10/11 · 64-bit</sub>
+<sub>Current stable release: **2.3.1** · Windows 10/11 · 64-bit</sub>
 
-**[Open the official GetANNY 2.2.5 release page](https://github.com/p4yy/GetANNY/releases/latest)**
+**[Open the official GetANNY 2.3.1 release page](https://github.com/p4yy/GetANNY/releases/latest)**
 
 Choose one Windows package:
 
-| Package                                                                                                            | Best for                                                  |
-| ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| [Setup (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Setup.exe)             | Recommended for most users                                |
-| [Windows Installer (.msi)](https://github.com/p4yy/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Setup.msi) | Managed or scripted Windows installation                  |
-| [Portable (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Portable.exe)       | Running from a writable folder without a standard install |
+| Package                                                                                                      | Best for                                                  |
+| ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| [Setup (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.3.1/GetANNY-2.3.1-Setup.exe)             | Recommended for most users                                |
+| [Windows Installer (.msi)](https://github.com/p4yy/GetANNY/releases/download/v2.3.1/GetANNY-2.3.1-Setup.msi) | Managed or scripted Windows installation                  |
+| [Portable (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.3.1/GetANNY-2.3.1-Portable.exe)       | Running from a writable folder without a standard install |
 
-Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Windows-Bundle.zip) · [SHA-256 checksums](https://github.com/p4yy/GetANNY/releases/download/v2.2.5/SHA256SUMS.txt).
+Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releases/download/v2.3.1/GetANNY-v2.3.1-Windows.zip) · [SHA-256 checksums](https://github.com/p4yy/GetANNY/releases/download/v2.3.1/SHA256SUMS.txt).
 
 **Important:** Use only one installer format. The current release binaries are unsigned. Windows may show a SmartScreen warning; review the release notes and verify the downloaded file against the published SHA-256 checksums before running it.
 

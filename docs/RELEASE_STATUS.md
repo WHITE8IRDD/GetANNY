@@ -1,3 +1,13 @@
+# GetANNY 2.3.1 release status
+
+- Windows EXE, MSI, portable EXE and Store AppX packages were built locally from source version 2.3.1.
+- All 136 local automated tests passed; the renderer production build and eight browser extension packages also completed.
+- The Windows App Certification Kit ran file-only checks: 15 passed, 0 failed. Runtime install/launch checks were not run.
+- GitHub Actions installation/browser tests were skipped at the owner's direction. The binaries are unsigned; SmartScreen may warn.
+- GitHub publication status is recorded in `Documentation/RELEASE_INFO.md` in the bundle.
+
+---
+
 # GetANNY 2.3.0 release status
 
 - Source version: 2.3.0 at merged `main` commit `0cc4045f011231d8e626eac1a4c5acd4926ac482`, after the latest published v2.2.5 and unpublished 2.2.6 source changes.

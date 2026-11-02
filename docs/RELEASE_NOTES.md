@@ -124,3 +124,30 @@ GetANNY 2.2.0 adds faster ways to capture downloads, playlist extraction, and op
 ## Verification and distribution
 
 See `RELEASE_STATUS.md` for what was verified. GitHub Actions Windows/browser tests were skipped at the owner's request. The binaries are unsigned; check SHA-256 values before running them. The release contains EXE, MSI, portable, eight browser extension ZIPs and a complete Windows bundle.
+
+# GetANNY 2.3.1 — Update checks and browser setup
+
+## Bug fixes
+
+- Update notifications appear only for a newer release whose Windows Setup EXE asset is present. Failed checks and missing assets remain quiet.
+- Update notices stay dismissed for the same version. Settings now includes a manual **Check for updates** action and reports when the app is current.
+- The sidebar download-location control opens the folder picker directly and saves the selected destination for browser downloads.
+- Completed application installers can show their embedded operating-system icon; unidentified files keep the generic file icon.
+
+## Browser setup
+
+- Added a compact **How to Install** guide with browser-specific Chromium and Firefox instructions.
+- The extension folder controls now include a restrained, one-time visual cue. The guide can be closed with its X button, Escape, or by clicking outside.
+
+## Performance
+
+- Tray mode continues to release the renderer while keeping download and authenticated browser services available for wake-on-event.
+
+## Installation
+
+Download the Windows Setup EXE from the [GetANNY releases page](https://github.com/p4yy/GetANNY/releases/latest). MSI and portable builds remain separate installation channels.
+
+## Known limitations
+
+- The GitHub updater is available only to installed NSIS Setup EXE builds. MSI, portable, and Store builds use their own update channels.
+- Firefox's unsigned extension can be loaded temporarily; permanent installation requires Mozilla signing.

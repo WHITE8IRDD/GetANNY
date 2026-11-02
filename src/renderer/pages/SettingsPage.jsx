@@ -10,6 +10,7 @@ import {
   LuCircleHelp,
   LuMonitor,
   LuPalette,
+  LuRefreshCw,
 } from "react-icons/lu";
 import { api, errorMessage } from "../api";
 import {
@@ -154,7 +155,17 @@ export default function SettingsPage({ capabilities, version }) {
     [saving, setSaving] = useState(""),
     [saved, setSaved] = useState(false),
     [error, setError] = useState(""),
-    [reset, setReset] = useState(false);
+    [reset, setReset] = useState(false),
+    [updateStatus, setUpdateStatus] = useState("idle");
+  const checkUpdates = async () => {
+    setUpdateStatus("checking");
+    try {
+      const result = await api.invoke("updates:check");
+      setUpdateStatus(result?.status || "unavailable");
+    } catch {
+      setUpdateStatus("unavailable");
+    }
+  };
   const persist = async (key, value) => {
     setSaving(key);
     setSaved(false);
@@ -530,6 +541,31 @@ export default function SettingsPage({ capabilities, version }) {
               <h2>{t("settings.startup.title")}</h2>
               <p>{t("settings.startup.description")}</p>
             </div>
+            {capabilities.updates && (
+              <SettingRow
+                title={t("updates.settingsTitle")}
+                description={t("updates.settingsDescription")}
+              >
+                <div className="update-check-control">
+                  <Button
+                    icon={LuRefreshCw}
+                    busy={updateStatus === "checking"}
+                    onClick={checkUpdates}
+                  >
+                    {t("updates.checkButton")}
+                  </Button>
+                  {updateStatus !== "idle" && updateStatus !== "checking" && (
+                    <span className="update-check-result" role="status">
+                      {updateStatus === "current"
+                        ? t("updates.current")
+                        : updateStatus === "available"
+                          ? t("updates.availableSetting")
+                          : t("updates.unavailable")}
+                    </span>
+                  )}
+                </div>
+              </SettingRow>
+            )}
             <SettingRow
               title={t("settings.completionSound.title")}
               description={t("settings.completionSound.description")}
