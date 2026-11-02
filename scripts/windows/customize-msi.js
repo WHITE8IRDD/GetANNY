@@ -22,7 +22,10 @@ module.exports = async (filename) => {
     "</Product>",
     `
     <Property Id="GETANNY_DESKTOP_SHORTCUT" Value="1" Secure="yes" />
-    <CustomAction Id="GetANNYPrepareBrowsers" FileKey="mainExecutable" ExeCommand="--setup-browser-hosts --quiet" Execute="immediate" Impersonate="yes" Return="check" />
+    <!-- Browser integration is repairable and must not roll back the desktop
+         product after InstallFinalize. The helper writes a per-browser report,
+         and packaged startup retries stale or incomplete direct provisioning. -->
+    <CustomAction Id="GetANNYPrepareBrowsers" FileKey="mainExecutable" ExeCommand="--setup-browser-hosts --quiet" Execute="immediate" Impersonate="yes" Return="ignore" />
     <CustomAction Id="GetANNYRemoveBrowsers" FileKey="mainExecutable" ExeCommand="--unregister-browser-hosts --quiet" Execute="immediate" Impersonate="yes" Return="ignore" />
     <InstallExecuteSequence>
       <Custom Action="GetANNYRemoveBrowsers" Before="RemoveFiles">REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE</Custom>
