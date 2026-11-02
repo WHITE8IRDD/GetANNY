@@ -52,9 +52,14 @@ foreach($id in @('helium','brave','vivaldi','opera','firefox','chrome')) {
   continue
  }
  Write-Host "Testing actual $id binary $browser with a new isolated profile..."
- if($id -eq 'firefox'){& node "$PSScriptRoot\test-firefox.js" $InstalledExe $folder $browser $gecko 2>&1 | Tee-Object "$folder\runtime.log"}
- else{& node "$PSScriptRoot\test-extension.js" $InstalledExe $folder $id $browser 2>&1 | Tee-Object "$folder\runtime.log"}
+ $runtimeLog="$folder\runtime.log"
+ if($id -eq 'firefox'){
+  & node "$PSScriptRoot\run-browser-test.js" 360000 $runtimeLog "$PSScriptRoot\test-firefox.js" $InstalledExe $folder $browser $gecko
+ } else {
+  & node "$PSScriptRoot\run-browser-test.js" 360000 $runtimeLog "$PSScriptRoot\test-extension.js" $InstalledExe $folder $id $browser
+ }
  $code=$LASTEXITCODE
+ if($code -eq 124){Write-Warning "$id runtime exceeded six minutes and its process tree was terminated."}
  if(Test-Path "$folder\browser-report.json") {
   $report=Get-Content "$folder\browser-report.json" -Raw | ConvertFrom-Json
   if($id -eq 'vivaldi' -and $report.failureCategory -eq 'browser-baseline' -and $report.baseline.passed -eq $false) {
