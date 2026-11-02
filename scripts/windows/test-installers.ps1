@@ -106,6 +106,24 @@ function Owned-NativeEntries([string] $Data) {
   if($found.Count -ne $expected){throw "Expected $expected owned native registrations across both registry views; found $($found.Count)."}
   return $found.ToArray()
 }
+function Wait-ProductRemoved([string] $InstalledExe, [string] $UninstallerPath, [int] $Timeout = 60000) {
+  $started=Get-Date
+  while((Test-Path -LiteralPath $InstalledExe) -or (Test-Path -LiteralPath $UninstallerPath)) {
+    if(((Get-Date)-$started).TotalMilliseconds -ge $Timeout) {
+      $installDirectory=Split-Path $InstalledExe -Parent
+      $processes=@(Get-CimInstance Win32_Process | Where-Object {
+        ($_.ExecutablePath -and $_.ExecutablePath.StartsWith($installDirectory,[StringComparison]::OrdinalIgnoreCase)) -or
+        ($_.CommandLine -and $_.CommandLine.Contains($installDirectory,[StringComparison]::OrdinalIgnoreCase)) -or
+        $_.Name -like '*GetANNY*'
+      } | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine)
+      $files=@(Get-ChildItem $installDirectory -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object FullName,Length,LastWriteTime)
+      @{passed=$false;date=(Get-Date -Format o);timeoutMs=$Timeout;installedExe=$InstalledExe;uninstaller=$UninstallerPath;processes=$processes;remainingFiles=$files} | ConvertTo-Json -Depth 7 | Set-Content (Join-Path $results 'exe-uninstall-timeout.json')
+      throw "EXE uninstallation did not remove product files within $Timeout ms. See exe-uninstall-timeout.json."
+    }
+    Start-Sleep -Milliseconds 250
+  }
+  "REMOVED $((Get-Date).ToString('o')) exe=$InstalledExe elapsedMs=$([int]((Get-Date)-$started).TotalMilliseconds)" | Add-Content (Join-Path $results 'processes.log')
+}
 function Assert-Uninstalled([string] $InstalledExe, $Shortcuts, [string] $Data, $Before, $NativeEntries) {
   $bridgeReport=Join-Path $Data 'browser-uninstall-report.json'
   if(Test-Path $bridgeReport){Copy-Item $bridgeReport (Join-Path $results ((Split-Path (Split-Path $InstalledExe -Parent) -Leaf)+'-uninstall-bridge.json'))}
@@ -149,13 +167,17 @@ $exeDefaultBefore=Profile-Snapshot $defaultData
 $uninstaller = Get-ChildItem $exeDir -Filter '*Uninstall*.exe' | Select-Object -First 1
 if (-not $uninstaller) { throw 'EXE uninstaller not found.' }
 Run-Checked $uninstaller.FullName @('/S')
-Start-Sleep -Seconds 2
-if (Test-Path $installedExe) { throw 'EXE uninstallation left the application executable.' }
-if (-not (Test-Path (Join-Path $exeData 'getanny.db'))) { throw 'Uninstaller destroyed isolated test history.' }
 $exeCleanupError=$null;$exeDefaultRetained=$null
-try {$exeDefaultRetained=Assert-Uninstalled $installedExe $exeShortcuts $defaultData $exeDefaultBefore $exeNativeEntries}
+try {
+  # NSIS first launches a temporary uninstaller and can return before that child
+  # removes the product. Wait for the measured product state, not the stub PID.
+  Wait-ProductRemoved $installedExe $uninstaller.FullName
+  if (-not (Test-Path (Join-Path $exeData 'getanny.db'))) { throw 'Uninstaller destroyed isolated test history.' }
+  $exeDefaultRetained=Assert-Uninstalled $installedExe $exeShortcuts $defaultData $exeDefaultBefore $exeNativeEntries
+}
 catch {$exeCleanupError=$_.Exception.Message;Write-Warning "EXE cleanup gate failed; preserve failure and measure independent MSI tests: $exeCleanupError"}
-@{passed=($null -eq $exeCleanupError);error=$exeCleanupError;exe=@{installed=$true;reinstalled=$true;uninstalled=($null -eq $exeCleanupError);applicationFilesRemoved=$true};defaultProfileRetention=@{exe=$exeDefaultRetained};shortcuts=@{exe=$exeShortcuts;createdAndTargetsVerified=$true;removedOnUninstall=$true;shellLaunch='passed-in-exe-desktop-lifecycle.json'}} | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $results 'exe-uninstall.json')
+$exeFilesRemoved=(-not(Test-Path $installedExe) -and -not(Test-Path $uninstaller.FullName))
+@{passed=($null -eq $exeCleanupError);error=$exeCleanupError;exe=@{installed=$true;reinstalled=$true;uninstalled=($null -eq $exeCleanupError);applicationFilesRemoved=$exeFilesRemoved};defaultProfileRetention=@{exe=$exeDefaultRetained};shortcuts=@{exe=$exeShortcuts;createdAndTargetsVerified=$true;removedOnUninstall=($null -eq $exeCleanupError);shellLaunch='passed-in-exe-desktop-lifecycle.json'}} | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $results 'exe-uninstall.json')
 Write-Host 'Installing the actual MSI package...'
 $msiDir = Join-Path $installRoot 'msi-app'
 $msiData = Join-Path $installRoot 'msi-data'
