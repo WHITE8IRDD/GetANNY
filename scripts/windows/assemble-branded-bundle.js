@@ -15,6 +15,11 @@ const version = require(path.join(root, "package.json")).version;
 const assets = path.join(root, "release-assets");
 const dist = path.join(root, "dist");
 const stage = path.join(assets, `GetANNY-${version}-Windows-Release`);
+const desktopBundle = path.join(
+  process.env.USERPROFILE || "",
+  "Desktop",
+  `GetANNY-v${version}-Release`,
+);
 
 const folders = [
   "Installers",
@@ -22,6 +27,7 @@ const folders = [
   "Browser_Extensions",
   "Setup_Helpers",
   "Documentation",
+  "MicrosoftStore",
   "Checksums",
 ];
 
@@ -71,6 +77,10 @@ function main() {
     path.join(dist, "GetANNY Portable.exe"),
     path.join(stage, "Portable", `GetANNY-${version}-Portable.exe`),
   );
+  const storePackage = path.join(dist, "GetANNY Store.appx");
+  const releaseStorePackage = fs.existsSync(storePackage)
+    ? copy(storePackage, path.join(assets, `GetANNY-${version}-Store.appx`))
+    : null;
   const releaseSetupExe = copy(
     setupExe,
     path.join(assets, `GetANNY-${version}-Setup.exe`),
@@ -123,6 +133,30 @@ function main() {
     path.join(stage, "Setup_Helpers/NATIVE_MESSAGING.md"),
   );
 
+  if (fs.existsSync(storePackage)) {
+    copy(
+      storePackage,
+      path.join(stage, "MicrosoftStore", `GetANNY-${version}-Store.appx`),
+    );
+    fs.writeFileSync(
+      path.join(stage, "MicrosoftStore/STORE-README.txt"),
+      [
+        `Package: GetANNY-${version}-Store.appx`,
+        "Format: unsigned AppX, prepared for Partner Center review.",
+        "",
+        "Before submission:",
+        "1. Confirm the package identity and publisher match the reserved Partner Center name.",
+        "   Current identity: AcevisualsCo.GetANNY; publisher: CN=C9138F01-73FF-487D-80C4-21BBA2C93B73.",
+        "2. Sign with the certificate associated with the Partner Center publisher.",
+        "3. Run Windows App Certification Kit on the signed package and address any findings.",
+        "4. Add the Store listing description, screenshots, and other Partner Center metadata.",
+        "",
+        "This package was not submitted to Microsoft Store. Runtime certification was not performed.",
+        "",
+      ].join("\n"),
+    );
+  }
+
   const docs = [
     ["docs/WINDOWS_BUNDLE.md", "START_HERE.md"],
     ["docs/INSTALL_WINDOWS.md", "INSTALL_WINDOWS.md"],
@@ -158,7 +192,7 @@ function main() {
       "- Platform: Windows 10/11 x64",
       "- Signing: **unsigned** (no certificate was supplied)",
       "- Repository: https://github.com/p4yy/GetANNY",
-      "- Release: local build; not yet published",
+      `- Publication status: https://github.com/p4yy/GetANNY/releases/tag/v${version}`,
       "",
       "The EXE, MSI and portable executables are unsigned. Firefox packages are",
       "unsigned development ZIPs; Chromium-family packages require developer-mode",
@@ -184,6 +218,13 @@ function main() {
     sums.join("\n") + "\n",
   );
 
+  if (process.argv.includes("--desktop")) {
+    if (!fs.existsSync(path.dirname(desktopBundle)))
+      throw new Error(`Desktop folder not found: ${path.dirname(desktopBundle)}`);
+    fs.cpSync(stage, desktopBundle, { recursive: true, force: true });
+    console.log(`Desktop bundle folder: ${desktopBundle}`);
+  }
+
   const zipName = `GetANNY-${version}-Windows-Bundle.zip`;
   const zipPath = path.join(assets, zipName);
   fs.rmSync(zipPath, { force: true });
@@ -205,6 +246,7 @@ function main() {
     releaseSetupExe,
     releaseSetupMsi,
     releasePortable,
+    ...(releaseStorePackage ? [releaseStorePackage] : []),
     updaterSetup,
     updaterBlockmap,
     updaterFeed,

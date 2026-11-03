@@ -254,6 +254,7 @@ class DownloadManager extends EventEmitter {
       headers: { ...(item.headers || {}), ...(item.sessionHeaders || {}) },
       timeout: (this.settings.requestTimeoutSeconds || 30) * 1000,
       connections: this.settings.maxConnectionsPerDownload || 8,
+      maxConcurrentDownloads: this.settings.maxConcurrentDownloads || 3,
       speedLimit: this.settings.speedLimit || 0,
       tempPath: this.workPath(item),
       reserveTarget: (info) => this.reserve(item, info),
@@ -383,8 +384,18 @@ class DownloadManager extends EventEmitter {
   }
   async pause(id) {
     const item = this.requireItem(id);
-    if (ACTIVE.has(item.status)) await this.running.get(id)?.pause();
-    else if (["queued", "retrying"].includes(item.status)) {
+    if (ACTIVE.has(item.status)) {
+      const engine = this.running.get(id);
+      if (!engine) return false;
+      await engine.pause();
+      // The engine has stopped at this point. Remove its queue slot before
+      // returning so an immediate Resume cannot race the start promise's
+      // later finally callback and lose the newly queued job.
+      if (this.running.get(id) === engine) {
+        this.running.delete(id);
+        this.pump();
+      }
+    } else if (["queued", "retrying"].includes(item.status)) {
       this.clearRetry(id);
       this.queue = this.queue.filter((value) => value !== id);
       item.status = "paused";

@@ -1,3 +1,18 @@
+# GetANNY 2.4.0 local verification
+
+On Windows x64, the renderer, all eight browser extension ZIPs, Setup EXE, MSI,
+portable EXE, and unsigned Store AppX built successfully. The focused torrent,
+tracker refresh, and video-segment unit tests passed 9/9. The real yt-dlp/FFmpeg
+segment test passed and checked its trimmed duration and timestamped filename.
+
+The full source suite reported 139/142 passing. The three failures were the
+Windows child-process timeout assertion, OpenSSL local test-CA startup, and
+managed-media pause/restart partial-file preservation. The partial-preservation
+case remains unverified. A renderer UI run passed the browser status/popover and
+download checks, then failed the existing completion-volume drag assertion.
+The production GUI launch check and Windows App Certification Kit were not run.
+Long GitHub Actions install/browser jobs were skipped at the requester's direction.
+
 # Browser integration v2 verification status
 
 This section records outcomes for the current branch. It must be updated from actual commands/workflow evidence before publication; a test definition or prepared package is not a pass.

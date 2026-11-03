@@ -8,6 +8,7 @@ const { SettingsRepo } = require("./database/settings-repo");
 const { SettingsService } = require("./settings/SettingsService");
 const { DownloadManager } = require("./engine/DownloadManager");
 const { TorrentEngine } = require("./engine/TorrentEngine");
+const { TrackerListService } = require("./engine/TrackerListService");
 const { MediaEngine } = require("./media/MediaEngine");
 const { MediaDetector } = require("./media/MediaDetector");
 const { PreviewService } = require("./previews/PreviewService");
@@ -73,6 +74,11 @@ async function createServices({
     },
   });
   const mediaDetector = new MediaDetector({ binPath });
+  const trackerList = new TrackerListService({
+    cachePath: path.join(userDataPath, "tracker-list.json"),
+  });
+  await trackerList.loadCache();
+  trackerList.start();
   const previews = new PreviewService({
     userDataPath,
     binPath,
@@ -87,7 +93,11 @@ async function createServices({
     engineFactory: (item, options) => {
       if (item.kind === "media")
         return new MediaEngine(options, mediaDetector.ytdlp);
-      if (item.kind === "torrent") return new TorrentEngine(options);
+      if (item.kind === "torrent")
+        return new TorrentEngine({
+          ...options,
+          getTrackers: () => trackerList.getTrackers(),
+        });
       return null;
     },
   });
@@ -237,6 +247,8 @@ async function createServices({
         settings.set("firstRunCompleted", true).catch(() => {});
       events.emit("event", "browser:changed", wsServer.status());
     },
+    onConnectionChange: (status) =>
+      events.emit("event", "browser:changed", status),
   });
   await new Promise((resolve) => {
     if (wsServer.server.address() || wsServer.error) resolve();
@@ -446,6 +458,7 @@ async function createServices({
       );
       await wsServer.close();
       await manager.shutdown();
+      trackerList.close();
       db.close();
     },
   };

@@ -38,6 +38,16 @@ import ThemesPage from "./pages/ThemesPage";
 import ThemeSwitcher from "./components/ThemeSwitcher";
 import LanguageSwitcher from "./components/LanguageSwitcher";
 import { useI18n } from "./i18n/useI18n";
+import {
+  SiBrave,
+  SiFirefoxbrowser,
+  SiGooglechrome,
+  SiHeliumbrowser,
+  SiOpera,
+  SiVivaldi,
+} from "react-icons/si";
+import { FaEdge } from "react-icons/fa";
+import chromiumLogo from "./assets/browser-icons/chromium.png";
 import { applyTheme } from "./utils/theme";
 import AddDownloadDialog from "./components/AddDownloadDialog";
 import DownloadDetails from "./components/DownloadDetails";
@@ -203,7 +213,107 @@ function Sidebar({ bridge, version, platform }) {
     </aside>
   );
 }
-function StatusBar({ version }) {
+const browserIcons = {
+  helium: SiHeliumbrowser,
+  chrome: SiGooglechrome,
+  brave: SiBrave,
+  firefox: SiFirefoxbrowser,
+  vivaldi: SiVivaldi,
+  opera: SiOpera,
+  edge: FaEdge,
+};
+const browserLabels = {
+  helium: "Helium",
+  chrome: "Google Chrome",
+  chromium: "Chromium",
+  brave: "Brave",
+  firefox: "Mozilla Firefox",
+  vivaldi: "Vivaldi",
+  opera: "Opera",
+  edge: "Microsoft Edge",
+};
+function BrowserPulse({ bridge }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const root = React.useRef(null);
+  const sessions = bridge.sessions || [];
+  useEffect(() => {
+    if (!open) return;
+    const dismiss = (event) => {
+      if (event.type === "keydown" && event.key === "Escape") setOpen(false);
+      if (event.type === "pointerdown" && !root.current?.contains(event.target))
+        setOpen(false);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", dismiss);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", dismiss);
+    };
+  }, [open]);
+  const count = sessions.length;
+  return (
+    <div className="browser-pulse-wrap" ref={root}>
+      <button
+        className={`browser-pulse ${count ? "connected" : ""}`}
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => setOpen((value) => !value)}
+        title={t("browser.connectionDetails")}
+      >
+        <span className={`browser-pulse-dot ${count ? "active" : ""}`} />
+        <span>
+          {count
+            ? t(
+                count === 1
+                  ? "shell.browserConnected"
+                  : "shell.browsersConnected",
+                { count },
+              )
+            : t("shell.noBrowser")}
+        </span>
+      </button>
+      {open && (
+        <div
+          className="browser-pulse-popover"
+          role="dialog"
+          aria-label={t("browser.connectionDetails")}
+        >
+          <strong>{t("browser.connectionDetails")}</strong>
+          {sessions.length ? (
+            sessions.map((session, index) => {
+              const Icon = browserIcons[session.browserId];
+              const name =
+                browserLabels[session.browserId] || t("browser.unknownBrowser");
+              return (
+                <div
+                  className="browser-pulse-session"
+                  key={`${session.browserId}-${index}`}
+                >
+                  {session.browserId === "chromium" ? (
+                    <img src={chromiumLogo} alt="" />
+                  ) : Icon ? (
+                    <Icon aria-hidden="true" />
+                  ) : (
+                    <LuGlobe aria-hidden="true" />
+                  )}
+                  <span>{name}</span>
+                  <small>{t("browser.connected")}</small>
+                </div>
+              );
+            })
+          ) : (
+            <div className="browser-pulse-empty">
+              {t("browser.noConnections")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+function StatusBar({ version, bridge }) {
   const { t } = useI18n();
   const [downloads, setDownloads] = useState(
     () => useDownloadStore.getState().downloads,
@@ -263,6 +373,7 @@ function StatusBar({ version }) {
         </span>
       </div>
       <div className="statusbar-end">
+        <BrowserPulse bridge={bridge} />
         <button
           type="button"
           className="status-speed"
@@ -844,7 +955,7 @@ export default function App() {
               )}
             </main>
           </div>
-          <StatusBar version={boot.version} />
+          <StatusBar version={boot.version} bridge={bridge} />
         </>
       ) : (
         <div className="startup-screen">

@@ -26,6 +26,7 @@ import {
   Select,
 } from "../components/ui";
 import MediaMetadata from "../components/MediaMetadata";
+import VideoSegmentSelector from "../components/VideoSegmentSelector";
 import VirtualList from "../components/VirtualList";
 import useSettingsStore from "../stores/useSettingsStore";
 import useUIStore from "../stores/useUIStore";
@@ -47,7 +48,8 @@ export default function MediaPage({ tools }) {
     [section, setSection] = useState("media"),
     [withSubtitles, setWithSubtitles] = useState(false),
     [subtitleLanguage, setSubtitleLanguage] = useState(""),
-    [subtitleFormat, setSubtitleFormat] = useState("vtt");
+    [subtitleFormat, setSubtitleFormat] = useState("vtt"),
+    [segment, setSegment] = useState(null);
   const [playlist, setPlaylist] = useState(null),
     [playlistSelection, setPlaylistSelection] = useState(() => new Set()),
     [playlistQuality, setPlaylistQuality] = useState("1080"),
@@ -84,6 +86,7 @@ export default function MediaPage({ tools }) {
     setUrl("");
     setResult(null);
     setSelected(null);
+    setSegment(null);
     setError("");
     setBusy(false);
     document.getElementById("media-url")?.focus();
@@ -95,6 +98,7 @@ export default function MediaPage({ tools }) {
     setError("");
     setResult(null);
     setSelected(null);
+    setSegment(null);
     setSection("media");
     setWithSubtitles(false);
     try {
@@ -188,6 +192,7 @@ export default function MediaPage({ tools }) {
     [],
   );
   const format = result?.formats.find((item) => item.formatId === selected);
+  const partialSegment = group === "video" && !!segment;
   const add = async () => {
     setAdding(true);
     setError("");
@@ -195,7 +200,8 @@ export default function MediaPage({ tools }) {
       await api.invoke("media:download", {
         analysisId: result.analysisId,
         formatId: format.formatId,
-        ...(withSubtitles && subtitleLanguage
+        ...(segment && group === "video" ? { segment } : {}),
+        ...(!segment && withSubtitles && subtitleLanguage
           ? {
               subtitle: {
                 languageId: subtitleLanguage,
@@ -210,7 +216,11 @@ export default function MediaPage({ tools }) {
       useUIStore
         .getState()
         .notify(
-          withSubtitles ? t("media.addedWithSubtitles") : t("media.added"),
+          partialSegment
+            ? t("media.segment.queued")
+            : withSubtitles
+              ? t("media.addedWithSubtitles")
+              : t("media.added"),
         );
       useUIStore.getState().setActiveTab("all");
     } catch (error) {
@@ -449,6 +459,7 @@ export default function MediaPage({ tools }) {
                       key={key}
                       onClick={() => {
                         setGroup(key);
+                        if (key !== "video") setSegment(null);
                         const first = result.formats.find(
                           (item) => item.group === key,
                         );
@@ -598,17 +609,55 @@ export default function MediaPage({ tools }) {
                   onChange={setFolder}
                   id="media-folder"
                 />
+                {group === "video" &&
+                  result.duration >= 1 &&
+                  !result.live &&
+                  result.tools.ffmpeg && (
+                    <VideoSegmentSelector
+                      duration={result.duration}
+                      value={segment}
+                      onChange={(next) => {
+                        setSegment(next);
+                        if (next) setWithSubtitles(false);
+                      }}
+                    />
+                  )}
+                {group === "video" && (result.live || !result.duration) && (
+                  <div className="segment-unavailable">
+                    {result.live
+                      ? t("media.segment.liveUnavailable")
+                      : t("media.segment.durationUnavailable")}
+                  </div>
+                )}
+                {group === "video" &&
+                  result.duration > 0 &&
+                  result.duration < 1 && (
+                    <div className="segment-unavailable">
+                      {t("media.segment.durationUnavailable")}
+                    </div>
+                  )}
+                {group === "video" &&
+                  result.duration >= 1 &&
+                  !result.live &&
+                  !result.tools.ffmpeg && (
+                    <div className="segment-unavailable">
+                      {t("media.segment.ffmpegUnavailable")}
+                    </div>
+                  )}
                 {group === "video" && result.subtitles.length > 0 && (
                   <div className="subtitle-companion">
                     <label>
                       <input
                         type="checkbox"
                         checked={withSubtitles}
+                        disabled={partialSegment}
                         onChange={(event) =>
                           setWithSubtitles(event.target.checked)
                         }
                       />
-                      {t("media.includeSubtitles")}
+                      {partialSegment
+                        ? t("media.segment.subtitleUnavailable")
+                        : t("media.includeSubtitles")}
                     </label>
                     {withSubtitles && (
                       <div>
@@ -647,18 +696,24 @@ export default function MediaPage({ tools }) {
                   disabled={
                     !format ||
                     !folder ||
-                    (withSubtitles && !subtitleLanguage) ||
+                    (withSubtitles && !partialSegment && !subtitleLanguage) ||
                     (format.mergeAudio && !result.tools.ffmpeg)
                   }
                   onClick={add}
                 >
                   {t(
-                    group === "audio"
-                      ? "media.downloadAudio"
-                      : "media.downloadVideo",
+                    partialSegment
+                      ? "media.segment.download"
+                      : group === "audio"
+                        ? "media.downloadAudio"
+                        : "media.downloadVideo",
                   )}
                 </Button>
-                <p>{t("media.progressNote")}</p>
+                <p>
+                  {partialSegment
+                    ? t("media.segment.progressNote")
+                    : t("media.progressNote")}
+                </p>
                 {!result.tools.ffmpeg && (
                   <div className="small-warning">
                     {t("media.ffmpegMissing")}

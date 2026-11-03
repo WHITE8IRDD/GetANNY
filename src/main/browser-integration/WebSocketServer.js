@@ -95,6 +95,7 @@ class WebSocketServer {
     },
     onDownloadStatus = async () => ({ action: "missing" }),
     onHello = () => {},
+    onConnectionChange = () => {},
     theme = null,
   } = {}) {
     Object.assign(this, {
@@ -108,6 +109,7 @@ class WebSocketServer {
       onDownloadRequest,
       onDownloadStatus,
       onHello,
+      onConnectionChange,
       theme,
     });
     this.clients = new Map();
@@ -141,7 +143,9 @@ class WebSocketServer {
       }, 10000);
       socket.on("close", () => {
         clearTimeout(authTimeout);
+        const wasConnected = Boolean(state.browserId);
         this.clients.delete(socket);
+        if (wasConnected) this.onConnectionChange(this.status());
       });
       socket.on("error", () => {
         clearTimeout(authTimeout);

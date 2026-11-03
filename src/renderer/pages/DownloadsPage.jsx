@@ -517,9 +517,14 @@ function DownloadRow({
               </span>
               <span>
                 {item.kind === "torrent"
-                  ? t("downloads.peers", { count: item.peers || 0 })
+                  ? `${t("downloads.peers", { count: item.peers || 0 })} · ${t("downloads.seeds", { count: item.seeds || 0 })} · ${t("downloads.trackers", { count: item.connectedTrackers || 0, total: item.trackerCount || 0 })}`
                   : ""}
               </span>
+              {item.kind === "torrent" && item.trackerWarning && (
+                <span className="torrent-tracker-warning" role="status">
+                  {t("downloads.trackerWarning")}
+                </span>
+              )}
             </>
           ) : item.status === "processing" ? (
             <span>{item.phase || t("downloads.verifying")}</span>

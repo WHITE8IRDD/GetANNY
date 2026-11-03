@@ -4,6 +4,16 @@ const path = require("node:path");
 const { sanitizeFilename } = require("../engine/utils");
 const { convertCaptions, fetchCaption } = require("./subtitles");
 
+function segmentStamp(seconds) {
+  const whole = Math.round(seconds);
+  const hours = Math.floor(whole / 3600);
+  const minutes = Math.floor((whole % 3600) / 60);
+  const remainder = whole % 60;
+  return hours
+    ? `${String(hours).padStart(2, "0")}h${String(minutes).padStart(2, "0")}m${String(remainder).padStart(2, "0")}s`
+    : `${String(minutes).padStart(2, "0")}m${String(remainder).padStart(2, "0")}s`;
+}
+
 class MediaEngine extends EventEmitter {
   constructor(options, wrapper) {
     super();
@@ -37,7 +47,10 @@ class MediaEngine extends EventEmitter {
       // the finished, verified file is published to the destination.
       this.workPath = this.tempPath || this.savePath;
       await fs.mkdir(this.workPath, { recursive: true });
-      const stem = `${sanitizeFilename(media.title).slice(0, 140)} [${this.id}]`;
+      const segmentSuffix = media.segment
+        ? `_${segmentStamp(media.segment.start)}-${segmentStamp(media.segment.end)}`
+        : "";
+      const stem = `${sanitizeFilename(media.title).slice(0, 140)}${segmentSuffix} [${this.id}]`;
       const outputTemplate =
         path.join(this.workPath, stem).replaceAll("%", "%%") + ".%(ext)s";
       let filePath;
@@ -59,6 +72,7 @@ class MediaEngine extends EventEmitter {
           url: this.url,
           formatId: media.formatId,
           mergeAudio: media.mergeAudio,
+          segment: media.segment,
           outputTemplate,
           speedLimit: this.speedLimit,
           timeout: this.timeout / 1000,
@@ -104,9 +118,11 @@ class MediaEngine extends EventEmitter {
               eta: Number.isFinite(value.eta) ? value.eta : null,
               phase: finalizing
                 ? "Finalizing media"
-                : media.mergeAudio && tracks.length < 2
-                  ? "Downloading video; audio follows"
-                  : "Downloading media",
+                : media.segment
+                  ? "Downloading selected segment"
+                  : media.mergeAudio && tracks.length < 2
+                    ? "Downloading video; audio follows"
+                    : "Downloading media",
             });
           },
         });
@@ -203,7 +219,9 @@ class MediaEngine extends EventEmitter {
   async cleanup() {
     // Remove this transfer's work folder and any legacy in-place fragments.
     if (this.workPath && this.workPath !== this.savePath)
-      await fs.rm(this.workPath, { recursive: true, force: true }).catch(() => {});
+      await fs
+        .rm(this.workPath, { recursive: true, force: true })
+        .catch(() => {});
     const names = await fs.readdir(this.savePath).catch(() => []);
     await Promise.all(
       names
@@ -230,4 +248,4 @@ class MediaEngine extends EventEmitter {
     return this.stop("cancelled");
   }
 }
-module.exports = { MediaEngine };
+module.exports = { MediaEngine, segmentStamp };

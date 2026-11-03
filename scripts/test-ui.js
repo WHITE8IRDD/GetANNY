@@ -1,8 +1,13 @@
 const { chromium, expect } = require("@playwright/test");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const WebSocket = require("ws");
 const { fixtureServer, checksum, waitFor } = require("../tests/helpers");
 const { mediaFixture } = require("../tests/media-fixture");
+const {
+  getBridgeIdentity,
+} = require("../src/main/browser-integration/BridgeIdentity");
+const { CHROMIUM_ID } = require("../src/main/browser-integration/catalog");
 const themeCatalog = require("../src/shared/themes.json");
 const { launchOptions } = require("./browser-launch");
 const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
@@ -25,6 +30,7 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
     reducedMotion: "reduce",
   });
   const errors = [];
+  let bridgeClient, chromiumClient;
   page.on("pageerror", (error) => errors.push(error.message));
   const invoke = async (channel, ...args) => {
     const response = await page.request.post(base + "/__getanny/invoke", {
@@ -54,6 +60,15 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
     await expect(
       page.getByRole("heading", { name: "Browser integration", exact: true }),
     ).toBeVisible();
+    const pulse = page.locator(".browser-pulse");
+    await pulse.click();
+    await expect(
+      page.getByRole("dialog", { name: "Browser connections" }),
+    ).toContainText("No browsers connected");
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("dialog", { name: "Browser connections" }),
+    ).toHaveCount(0);
     const cairo = await page.evaluate(async () => {
       const root = document.documentElement;
       const language = root.lang;
@@ -76,6 +91,109 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
     });
     await page.getByRole("button", { name: "I’ll set this up later" }).click();
     await nav("All downloads").click();
+    const bridgeStatus = await invoke("browser:bridge-status");
+    const bridgeIdentity = await getBridgeIdentity(
+      path.resolve(".arena/preview-data"),
+    );
+    bridgeClient = new WebSocket(`ws://127.0.0.1:${bridgeStatus.port}`, {
+      origin: `chrome-extension://${CHROMIUM_ID}`,
+    });
+    await new Promise((resolve, reject) => {
+      bridgeClient.once("open", resolve);
+      bridgeClient.once("error", reject);
+    });
+    const bridgeExchange = (message) =>
+      new Promise((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error("Browser pulse handshake timed out.")),
+          3000,
+        );
+        bridgeClient.once("message", (raw) => {
+          clearTimeout(timer);
+          resolve(JSON.parse(raw));
+        });
+        bridgeClient.send(JSON.stringify(message));
+      });
+    await bridgeExchange({
+      type: "authenticate",
+      token: bridgeIdentity.clientTokens.chrome,
+      transport: "websocket",
+    });
+    await bridgeExchange({
+      type: "hello",
+      browserId: "chrome",
+      extensionId: CHROMIUM_ID,
+      version: "ui-smoke",
+    });
+    await expect(pulse).toHaveClass(/connected/);
+    await pulse.click();
+    const browserDialog = page.getByRole("dialog", {
+      name: "Browser connections",
+    });
+    await expect(browserDialog.locator(".browser-pulse-session")).toContainText(
+      "Google Chrome",
+    );
+    await expect(browserDialog.locator(".browser-pulse-session")).toContainText(
+      "Connected",
+    );
+    chromiumClient = new WebSocket(`ws://127.0.0.1:${bridgeStatus.port}`, {
+      origin: `chrome-extension://${CHROMIUM_ID}`,
+    });
+    await new Promise((resolve, reject) => {
+      chromiumClient.once("open", resolve);
+      chromiumClient.once("error", reject);
+    });
+    const exchangeChromium = (message) =>
+      new Promise((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error("Chromium icon handshake timed out.")),
+          3000,
+        );
+        chromiumClient.once("message", (raw) => {
+          clearTimeout(timer);
+          resolve(JSON.parse(raw));
+        });
+        chromiumClient.send(JSON.stringify(message));
+      });
+    await exchangeChromium({
+      type: "authenticate",
+      token: bridgeIdentity.clientTokens.chromium,
+      transport: "websocket",
+    });
+    await exchangeChromium({
+      type: "hello",
+      browserId: "chromium",
+      extensionId: CHROMIUM_ID,
+      version: "ui-smoke",
+    });
+    await expect(pulse).toContainText("2 browsers connected");
+    await expect(browserDialog.locator(".browser-pulse-session")).toHaveCount(
+      2,
+    );
+    await expect(
+      browserDialog.locator('.browser-pulse-session img[alt=""]'),
+    ).toBeVisible();
+    expect(
+      await browserDialog
+        .locator('.browser-pulse-session img[alt=""]')
+        .evaluate((image) => image.naturalWidth),
+    ).toBeGreaterThan(0);
+    await page.locator(".sidebar-version").click();
+    await expect(browserDialog).toHaveCount(0);
+    await pulse.click();
+    await page.keyboard.press("Escape");
+    await expect(browserDialog).toHaveCount(0);
+    await pulse.click();
+    chromiumClient.close();
+    await expect(browserDialog.locator(".browser-pulse-session")).toHaveCount(
+      1,
+    );
+    await expect(browserDialog.locator(".browser-pulse-session")).toContainText(
+      "Google Chrome",
+    );
+    bridgeClient.close();
+    await expect(browserDialog).toContainText("No browsers connected");
+    await expect(pulse).not.toHaveClass(/connected/);
     async function add(url, filename) {
       await nav("New download").click();
       await page.getByLabel("Download link", { exact: true }).fill(url);
@@ -158,6 +276,9 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
       path: path.join(output, "media-1320.png"),
       fullPage: true,
     });
+    await expect(page.locator(".segment-unavailable")).toContainText(
+      "reliable video duration is unavailable",
+    );
     await page.getByRole("tab", { name: "Description", exact: true }).click();
     await expect(page.locator(".video-description")).toContainText(
       "Full integration description",
@@ -487,12 +608,14 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
       date: new Date().toISOString(),
       checks: [
         "Browser onboarding renders with honest unknown states",
+        "Browser indicator reports a real authenticated connection, shows the official icon and closes by outside click and Escape",
         "Bundled Cairo font loads locally when the renderer language is Arabic",
         "New-download IPC/SSE list updates",
         "HTTP UI pause/resume and hash verification",
         "HTTP 404 failure view",
         "Actual empty-file completion shows verified zero bytes, not unknown size",
         "Real yt-dlp metadata, thumbnails, independent SRT, alongside VTT and video downloads",
+        "Video segment selection degrades cleanly when duration metadata is unavailable",
         "Completed-video lazy preview renders from the bounded cache",
         "Validated settings, scheduling and animation modes affect the backend and renderer",
         "Completion volume keyboard changes persist; pointer drags save only once on release",
@@ -512,6 +635,8 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
     );
     console.log(JSON.stringify(report, null, 2));
   } finally {
+    bridgeClient?.terminate();
+    chromiumClient?.terminate();
     await browser.close();
     for (const fn of cleanup.reverse()) await fn();
   }

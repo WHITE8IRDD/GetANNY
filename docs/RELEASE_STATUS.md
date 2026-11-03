@@ -1,3 +1,17 @@
+# GetANNY 2.4.0 release status
+
+- Source version: 2.4.0.
+- Windows x64 Setup EXE, MSI, portable EXE, and unsigned Store AppX were built successfully from this source. The renderer and all eight browser extension ZIPs also built successfully.
+- Focused segment, tracker-list, and torrent-engine tests passed 9/9. A real yt-dlp/FFmpeg segment-cut test passed and verified the output duration and timestamped filename.
+- The complete local suite reported 139/142 passing. Three environment-sensitive checks failed: a Windows child-process timeout assertion, the local OpenSSL test-CA process, and physical `.part` preservation during managed-media pause/restart. The pause/restart behavior remains unverified.
+- A previous renderer UI run passed the browser popover, disconnect, and transfer checks but failed an existing completion-volume slider drag assertion. A production-window launch check was not completed; launching the test executable activated the already-installed 2.3.1 app.
+- Windows App Certification Kit validation was not run. The AppX identity is `AcevisualsCo.GetANNY` with publisher `CN=C9138F01-73FF-487D-80C4-21BBA2C93B73`; confirm it matches the reserved Partner Center identity before submission. All Windows binaries are unsigned.
+- Torrent performance is unmeasured; no comparable before/after benchmark is available.
+- GitHub Actions installation/browser workflows were skipped at the requester's direction; local tests are recorded above.
+- GitHub publication status is recorded in `Documentation/RELEASE_INFO.md` in the Desktop bundle.
+
+---
+
 # GetANNY 2.3.1 release status
 
 - Windows EXE, MSI, portable EXE and Store AppX packages were built locally from source version 2.3.1.

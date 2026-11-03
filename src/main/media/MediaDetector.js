@@ -37,12 +37,31 @@ class MediaDetector {
       throw new Error("This format list has expired. Analyze the URL again.");
     return analysis;
   }
-  selection({ analysisId, formatId }) {
+  selection({ analysisId, formatId, segment }) {
     const analysis = this.analysis(analysisId);
     const format = analysis.formats.find(
       (value) => value.formatId === formatId,
     );
     if (!format) throw new Error("Choose an available video or audio format.");
+    let validatedSegment = null;
+    if (segment != null) {
+      if (format.group !== "video" || format.hasVideo === false)
+        throw new Error("Segments are available for video formats only.");
+      if (analysis.live || !Number.isFinite(analysis.duration))
+        throw new Error("A reliable duration is required to select a segment.");
+      const start = Number(segment.start);
+      const end = Number(segment.end);
+      if (
+        !Number.isFinite(start) ||
+        !Number.isFinite(end) ||
+        start < 0 ||
+        end > analysis.duration ||
+        end - start < 1
+      )
+        throw new Error("Choose a valid video segment of at least one second.");
+      validatedSegment =
+        start <= 0 && end >= analysis.duration ? null : { start, end };
+    }
     return {
       url: analysis.originalUrl,
       media: {
@@ -54,6 +73,7 @@ class MediaDetector {
         ext: format.ext,
         quality: format.quality,
         audioUnknown: format.audioUnknown,
+        segment: validatedSegment,
       },
     };
   }

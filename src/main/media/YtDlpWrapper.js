@@ -57,26 +57,37 @@ class YtDlpWrapper {
       const abort = () => {
         killed = true;
         if (!child.pid) return;
-        if (process.platform === "win32")
-          spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
-            windowsHide: true,
-            stdio: "ignore",
-          }).on("error", () => child.kill());
-        else {
+        if (process.platform === "win32") {
+          const treeKiller = spawn(
+            "taskkill",
+            ["/pid", String(child.pid), "/T", "/F"],
+            {
+              windowsHide: true,
+              stdio: "ignore",
+            },
+          );
+          treeKiller.on("error", () => child.kill());
+          treeKiller.on("close", (code) => {
+            if (code !== 0) child.kill();
+          });
+          // Do not let a failed or blocked taskkill leave the transfer running
+          // until it finishes naturally. The tree kill above gets first chance
+          // to stop FFmpeg children; this closes yt-dlp promptly as fallback.
+          killTimer = setTimeout(() => child.kill(), 500);
+        } else {
           try {
             process.kill(-child.pid, "SIGTERM");
           } catch {
             child.kill();
           }
+          killTimer = setTimeout(() => {
+            try {
+              process.kill(-child.pid, "SIGKILL");
+            } catch {
+              child.kill();
+            }
+          }, 3000);
         }
-        killTimer = setTimeout(() => {
-          try {
-            if (process.platform === "win32") child.kill();
-            else process.kill(-child.pid, "SIGKILL");
-          } catch {
-            /* already exited */
-          }
-        }, 3000);
         killTimer.unref?.();
       };
       signal?.addEventListener("abort", abort, { once: true });
@@ -167,7 +178,13 @@ class YtDlpWrapper {
       title: info.title || "Untitled media",
       url: info.webpage_url || url,
       thumbnail: info.thumbnail || null,
-      duration: info.duration || null,
+      duration:
+        Number.isFinite(Number(info.duration)) && Number(info.duration) > 0
+          ? Number(info.duration)
+          : null,
+      live:
+        info.is_live === true ||
+        ["is_live", "is_upcoming"].includes(info.live_status),
       extractor: info.extractor_key || info.extractor || null,
       description: typeof info.description === "string" ? info.description : "",
       tags: Array.isArray(info.tags)
@@ -308,6 +325,7 @@ class YtDlpWrapper {
     mergeAudio,
     outputTemplate,
     speedLimit,
+    segment,
     timeout = 30,
     onProgress,
     onFile,
@@ -319,6 +337,10 @@ class YtDlpWrapper {
     if (mergeAudio && !tools.ffmpeg)
       throw new Error(
         "This video format needs FFmpeg to include audio. Reinstall the complete application, or choose a format that already includes sound.",
+      );
+    if (segment && !tools.ffmpeg)
+      throw new Error(
+        "FFmpeg is required to download a selected video segment. Reinstall the complete application to restore it.",
       );
     await fs.mkdir(path.dirname(outputTemplate), { recursive: true });
     const args = [
@@ -349,6 +371,32 @@ class YtDlpWrapper {
       "-f",
       mergeAudio ? `${formatId}+bestaudio` : formatId,
     ];
+    if (segment) {
+      const start = Number(segment.start);
+      const end = Number(segment.end);
+      if (
+        !Number.isFinite(start) ||
+        !Number.isFinite(end) ||
+        start < 0 ||
+        end <= start ||
+        end - start < 1
+      )
+        throw new Error("Choose a valid video segment of at least one second.");
+      const time = (value) => {
+        const whole = Math.floor(value);
+        const hours = Math.floor(whole / 3600);
+        const minutes = Math.floor((whole % 3600) / 60);
+        const seconds = whole % 60;
+        return hours
+          ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+          : `${minutes}:${String(seconds).padStart(2, "0")}`;
+      };
+      args.push(
+        "--download-sections",
+        `*${time(start)}-${time(end)}`,
+        "--force-keyframes-at-cuts",
+      );
+    }
     if (tools.ffmpeg) args.push("--ffmpeg-location", this.binPath);
     if (speedLimit > 0) args.push("--limit-rate", String(speedLimit));
     args.push("--", validateUrl(url));

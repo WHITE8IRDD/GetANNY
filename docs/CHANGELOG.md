@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.0 — Video segments, torrent discovery, and browser status
+
+- Added an accessible video timeline with draggable handles and manual timestamps; yt-dlp downloads only selected sections and FFmpeg makes accurate boundary cuts. Full-video downloads keep their existing path and naming.
+- Added daily cached tracker-list updates with a safe fallback set, tracker supplementation for sparse magnets, gradual connection ramp-up, and rarest-first piece selection.
+- Torrent rows now report peers, seeds, responding trackers, and a quiet warning when trackers have not responded. Performance gains have not been benchmarked against comparable swarms.
+- Added a reduced-motion-aware browser connection pulse and details popover with bundled browser icons, live bridge events, and unknown-browser fallback.
+- Fixed an immediate pause/resume race that could drop a resumed transfer from the queue.
+
 ## 2.3.1 — Reliable updates and clearer browser setup
 
 - Update checks now compare semantic versions, verify that the Setup EXE asset exists, and fail quietly when GitHub metadata or assets are unavailable.

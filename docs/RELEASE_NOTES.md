@@ -1,3 +1,11 @@
+# GetANNY 2.4.0 — Video segments and connection status
+
+- Select a video range using the timeline or timestamp fields. GetANNY requests only that range and uses FFmpeg for accurate cuts. Unknown-duration and live media keep the full-video flow.
+- Torrent jobs now supplement sparse tracker lists from a daily cached public list, ramp peer connections based on configured concurrency, and use rarest-first piece selection.
+- Torrent rows show peers, seeds, and responding trackers, with a short warning when trackers do not respond. Performance gains have not been benchmarked across comparable swarms.
+- The bottom bar now shows a quiet browser-connection pulse and popover with browser names, bundled icons, and live connection state.
+- Fixed an immediate pause/resume race in the download queue.
+
 # GetANNY 2.3.0 — Reliable direct browser bridge
 
 Browser integration now uses an authenticated loopback WebSocket as its primary transport across Helium, Chrome, Chromium, Brave, Firefox, Vivaldi, Opera and Edge. Native Messaging remains a secure cold-start and first-connection bootstrap rather than a fragile prerequisite.

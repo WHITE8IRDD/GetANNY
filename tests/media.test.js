@@ -461,6 +461,58 @@ test("an explicitly silent video remains downloadable without requiring a nonexi
 });
 
 test(
+  "REAL yt-dlp / FFmpeg: selected media segment is trimmed and keeps its timestamped filename",
+  { timeout: 45000 },
+  async (t) => {
+    const fixture = await mediaFixture(t);
+    if (!fixture) return;
+    const dir = await temporary(t, "getanny-media-segment-");
+    const url = `${fixture.server.url}/video.mp4`;
+    const metadata = await fixture.wrapper.getFormats(url);
+    const format = metadata.formats.find((item) => item.group === "video");
+    assert.ok(format);
+    const engine = new MediaEngine(
+      {
+        id: "real-segment",
+        url,
+        savePath: dir,
+        media: {
+          title: "Segment fixture",
+          formatId: format.formatId,
+          mergeAudio: false,
+          segment: { start: 1, end: 2 },
+        },
+        timeout: 30000,
+      },
+      fixture.wrapper,
+    );
+    engine.on("error", () => {});
+    await engine.start();
+    assert.equal(engine.status, "completed");
+    assert.match(engine.filename, /Segment fixture_00m01s-00m02s\.mp4$/);
+    const duration = Number(
+      execFileSync(
+        ffprobe,
+        [
+          "-v",
+          "error",
+          "-show_entries",
+          "format=duration",
+          "-of",
+          "default=noprint_wrappers=1:nokey=1",
+          path.join(dir, engine.filename),
+        ],
+        { encoding: "utf8" },
+      ).trim(),
+    );
+    assert.ok(
+      duration >= 0.8 && duration <= 1.5,
+      `Unexpected segment duration: ${duration}s`,
+    );
+  },
+);
+
+test(
   "REAL managed media: pause, process/database restart, ranged continuation, cancel and retry verify physical bytes",
   { timeout: 120000 },
   async (t) => {
@@ -483,7 +535,9 @@ test(
     };
     let services = await createServices(options);
     try {
-      await services.settings.set("speedLimit", 128 * 1024);
+      // Slow the initial attempt enough that a pause cannot race the final
+      // buffered bytes of this short fixture; resume at a normal test rate.
+      await services.settings.set("speedLimit", 32 * 1024);
       await services.settings.set("retryAttempts", 0);
       const analysis = await services.mediaDetector.getFormats(
         fixture.server.url + "/watch.html",
@@ -544,6 +598,7 @@ test(
       await services.close();
       services = await createServices(options);
       assert.equal(services.manager.requireItem(id).status, "paused");
+      await services.settings.set("speedLimit", 128 * 1024);
       const resumeRequestsFrom = fixture.server.state.requests.length;
       services.manager.resume(id);
       await waitFor(

@@ -1,6 +1,6 @@
 {
   "name": "getanny",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "description": "Windows download manager for files, media and browser downloads.",
   "main": "src/main/main.js",
   "author": "GetANNY Team",

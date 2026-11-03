@@ -275,7 +275,23 @@ test("queue slots, retries, history and collision-safe naming are real", async (
 });
 test("new downloads can start paused, resume, cancel, retry and delete actual files", async (t) => {
   const server = await fixtureServer(t, { size: 512 * 1024, delay: 5 });
-  const { manager } = await managerFixture(t, { autoStartDownloads: false });
+  const { manager } = await managerFixture(t, {
+    autoStartDownloads: false,
+    speedLimit: 1024,
+  });
+  const resumedId = await manager.addDownload({
+    url: server.url + "/file.bin",
+  });
+  manager.resume(resumedId);
+  await waitFor(() => manager.requireItem(resumedId).status === "downloading");
+  await manager.pause(resumedId);
+  assert.equal(manager.requireItem(resumedId).status, "paused");
+  manager.updateSettings({ ...manager.settings, speedLimit: 0 });
+  assert.equal(manager.resume(resumedId), true);
+  await waitFor(() => manager.requireItem(resumedId).status === "completed");
+  await waitFor(() => !manager.running.has(resumedId));
+  await manager.remove(resumedId, true);
+
   const id = await manager.addDownload({ url: server.url + "/file.bin" });
   assert.equal(manager.requireItem(id).status, "paused");
   assert.equal(manager.running.size, 0);
