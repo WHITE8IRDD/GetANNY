@@ -107,7 +107,7 @@ test("completed live recordings with a known duration remain eligible for segmen
   assert.equal(result.live, false);
 });
 
-test("yt-dlp receives an exact section range and keyframe correction flags", async (t) => {
+test("yt-dlp receives an exact section range and avoids slow keyframe re-encoding", async (t) => {
   const directory = await temporary(t);
   const wrapper = new YtDlpWrapper({ binPath: directory });
   wrapper.availability = async () => ({ ytdlp: true, ffmpeg: true });
@@ -126,7 +126,7 @@ test("yt-dlp receives an exact section range and keyframe correction flags", asy
   });
   const index = args.indexOf("--download-sections");
   assert.equal(args[index + 1], "*2:15-5:40");
-  assert.ok(args.includes("--force-keyframes-at-cuts"));
+  assert.ok(args.includes("--no-force-keyframes-at-cuts"));
 });
 
 test("partial media output names contain the chosen range and full video keeps its old name", async (t) => {

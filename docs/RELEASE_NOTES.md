@@ -1,3 +1,9 @@
+# GetANNY 2.4.1 — Faster, safer video segments
+
+- Segment cuts now use FFmpeg's fast keyframe-aligned stream-copy path instead of forcing a full video re-encode, avoiding the high-resolution extraction bottleneck and the re-encode path associated with malformed output.
+- The queue reports that it is finding a nearby keyframe while a segment is being prepared, instead of remaining on “Connecting” until the first byte-progress event.
+- Automated tests were not run at the user's request. Review the bundle notes for the Windows package formats included in this build.
+
 # GetANNY 2.4.0 — Video segments and connection status
 
 - Select a video range using the timeline or timestamp fields. GetANNY requests only that range and uses FFmpeg for accurate cuts. Unknown-duration and live media keep the full-video flow.

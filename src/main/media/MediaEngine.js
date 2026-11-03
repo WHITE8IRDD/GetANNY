@@ -41,7 +41,10 @@ class MediaEngine extends EventEmitter {
         throw new Error(
           "The media selection is missing. Analyze the page again.",
         );
-      this.setStatus("connecting");
+      this.setStatus(
+        media.segment ? "downloading" : "connecting",
+        media.segment ? { phase: "Finding a nearby keyframe" } : {},
+      );
       await fs.mkdir(this.savePath, { recursive: true });
       // yt-dlp fragments and .part files stay in the private work folder. Only
       // the finished, verified file is published to the destination.

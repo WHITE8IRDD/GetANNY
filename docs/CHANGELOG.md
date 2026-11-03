@@ -1,5 +1,11 @@
 # Changelog
 
+# 2.4.1 — Faster, safer video segments
+
+- Use fast keyframe-aligned stream-copy cuts instead of forced keyframe re-encoding for selected video segments.
+- Show “Finding a nearby keyframe” while segment preparation runs, so the queue does not remain on “Connecting” before progress is available.
+- Automated tests were not run at the user's request.
+
 ## 2.4.0 — Video segments, torrent discovery, and browser status
 
 - Added an accessible video timeline with draggable handles and manual timestamps; yt-dlp downloads only selected sections and FFmpeg makes accurate boundary cuts. Full-video downloads keep their existing path and naming.

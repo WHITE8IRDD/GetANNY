@@ -394,7 +394,11 @@ class YtDlpWrapper {
       args.push(
         "--download-sections",
         `*${time(start)}-${time(end)}`,
-        "--force-keyframes-at-cuts",
+        // Keep the cut on a nearby keyframe and copy the encoded streams.
+        // Forcing keyframes makes FFmpeg decode and re-encode the entire
+        // selected range, which is prohibitively slow for high-resolution
+        // media and can produce invalid output with some source codecs.
+        "--no-force-keyframes-at-cuts",
       );
     }
     if (tools.ffmpeg) args.push("--ffmpeg-location", this.binPath);

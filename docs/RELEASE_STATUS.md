@@ -1,3 +1,11 @@
+# GetANNY 2.4.1 release status
+
+- Source version: 2.4.1, based on the 2.4.0 release with a video-segment performance/output fix.
+- The change disables forced keyframe re-encoding so FFmpeg can cut on nearby keyframes and copy encoded streams. Segment rows now show a preparation phase before byte progress begins.
+- The Windows Setup EXE, MSI, single-file portable EXE, unsigned Store AppX, and unpacked app folder were built successfully. The bundle includes all four Windows formats, the eight browser extension ZIPs, setup helpers, docs, and SHA-256 checksums.
+- Windows App Certification Kit validation was not performed. GitHub publication status will be recorded in the release assets.
+- Automated tests were not run at the user's direction.
+
 # GetANNY 2.4.0 release status
 
 - Source version: 2.4.0.
