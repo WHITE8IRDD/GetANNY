@@ -20,6 +20,7 @@ const desktopBundle = path.join(
   "Desktop",
   `GetANNY-v${version}-Release`,
 );
+const includeStore = !process.argv.includes("--no-store");
 
 const folders = [
   "Installers",
@@ -27,7 +28,7 @@ const folders = [
   "Browser_Extensions",
   "Setup_Helpers",
   "Documentation",
-  "MicrosoftStore",
+  ...(includeStore ? ["MicrosoftStore"] : []),
   "ThirdPartySource",
   "Checksums",
 ];
@@ -83,7 +84,7 @@ function main() {
     path.join(stage, "Portable", `GetANNY-${version}-Portable.exe`),
   );
   const storePackage = path.join(dist, "GetANNY Store.appx");
-  const releaseStorePackage = fs.existsSync(storePackage)
+  const releaseStorePackage = includeStore && fs.existsSync(storePackage)
     ? copy(storePackage, path.join(assets, `GetANNY-${version}-Store.appx`))
     : null;
   const releaseSetupExe = copy(
@@ -157,7 +158,7 @@ function main() {
     path.join(stage, "Setup_Helpers/NATIVE_MESSAGING.md"),
   );
 
-  if (fs.existsSync(storePackage)) {
+  if (includeStore && fs.existsSync(storePackage)) {
     copy(
       storePackage,
       path.join(stage, "MicrosoftStore", `GetANNY-${version}-Store.appx`),
