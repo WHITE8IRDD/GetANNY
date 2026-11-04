@@ -1,3 +1,40 @@
+# GetANNY 2.4.7 — Precise video segments and torrent reliability
+
+- Video segments retain fractional timestamps and are encoded locally using FFmpeg accurate seeking, with processing progress and cancellation. Exported duration is checked before publication.
+- Segment exports use MKV, high-quality H.264/HEVC video and FLAC audio. The full source is downloaded before cutting. Runtime testing of these changes is pending owner review.
+
+- Torrent downloads use one app-wide client with TCP, native uTP, DHT, peer exchange and local peer discovery. Keeping it open lets DHT routing information carry between jobs and resumes.
+- Magnet metadata fetched for the file picker is stored with the job and reused by the transfer engine. Single and two-file torrents skip the picker and enter the queue directly.
+- A torrent with no connected peers stays active for up to 30 minutes instead of being marked failed after five minutes. Torrent rows report the active transport and connected peer counts.
+- Torrent downloads have no speed cap by default. Set a download speed limit in Settings to cap the shared client.
+- Peer availability, remote upload capacity, ISP/router settings and Windows networking still determine actual transfer speed. This update has not been measured against a live swarm.
+
+# GetANNY 2.4.5 — Torrent file selection and aria2 transfers
+
+- Torrent transfers now use the bundled aria2 process for TCP, DHT, peer exchange, local peer discovery and UDP tracker support. Resume data remains in a unique staging folder for each queue item.
+- Torrents with more than two files open a picker before they enter the queue. Filter the file list, select episodes, review the total size and destination, then download only the checked files.
+- Completed multi-file torrents preserve their folder structure. The Torrents page has a persistent Add torrent button with a restrained, reduced-motion-aware halo.
+- Targeted torrent unit checks and the production renderer build passed. No live torrent speed benchmark was run; peer availability and network conditions still affect transfer speed.
+
+# GetANNY 2.4.4 — Torrent transport and peer discovery
+
+- Restored WebTorrent for torrent transfers with native uTP, TCP, DHT, peer exchange, local discovery and automatic UPnP/NAT-PMP port mapping.
+- Torrent downloads keep verified pieces in GetANNY's private transfer workspace so pause and resume can reuse them.
+- Private torrent files are not sent to supplemental public trackers; status separates connected peers from tracker-reported swarm counts.
+- Automated tests and speed benchmarks were not run at the user's request.
+
+# GetANNY 2.4.3 — Native torrent transfer engine
+
+- Torrent downloads used bundled aria2 with BitTorrent TCP, DHT, peer exchange, local peer discovery, and tracker support.
+- Pause and resume retained aria2's partial torrent data in GetANNY's private transfer workspace. Completed files were moved into the selected download folder after piece verification.
+- The Windows package included aria2's required license notices and matching source archive.
+
+# GetANNY 2.4.2 — Torrent peer coverage and diagnostics
+
+- Enabled the packaged native WebRTC implementation for WebTorrent tracker connections, so compatible WebRTC peers can join regular TCP/uTP, DHT, tracker, and peer-exchange discovery.
+- Torrent status now shows tracker-reported swarm size and which discovery sources have not returned peers, helping distinguish an empty swarm from a connection problem.
+- Speed depends on available peers and the network. This change has not been benchmarked; automated tests were not run at the user's request.
+
 # GetANNY 2.4.1 — Faster, safer video segments
 
 - Segment cuts now use FFmpeg's fast keyframe-aligned stream-copy path instead of forcing a full video re-encode, avoiding the high-resolution extraction bottleneck and the re-encode path associated with malformed output.

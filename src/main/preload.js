@@ -4,6 +4,8 @@ const channels = [
   "clipboard:read-text",
   "download:add",
   "download:add-torrent",
+  "torrent:inspect",
+  "storage:free-space",
   "download:pause",
   "download:resume",
   "download:cancel",

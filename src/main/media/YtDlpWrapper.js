@@ -371,36 +371,7 @@ class YtDlpWrapper {
       "-f",
       mergeAudio ? `${formatId}+bestaudio` : formatId,
     ];
-    if (segment) {
-      const start = Number(segment.start);
-      const end = Number(segment.end);
-      if (
-        !Number.isFinite(start) ||
-        !Number.isFinite(end) ||
-        start < 0 ||
-        end <= start ||
-        end - start < 1
-      )
-        throw new Error("Choose a valid video segment of at least one second.");
-      const time = (value) => {
-        const whole = Math.floor(value);
-        const hours = Math.floor(whole / 3600);
-        const minutes = Math.floor((whole % 3600) / 60);
-        const seconds = whole % 60;
-        return hours
-          ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
-          : `${minutes}:${String(seconds).padStart(2, "0")}`;
-      };
-      args.push(
-        "--download-sections",
-        `*${time(start)}-${time(end)}`,
-        // Keep the cut on a nearby keyframe and copy the encoded streams.
-        // Forcing keyframes makes FFmpeg decode and re-encode the entire
-        // selected range, which is prohibitively slow for high-resolution
-        // media and can produce invalid output with some source codecs.
-        "--no-force-keyframes-at-cuts",
-      );
-    }
+    // Download intact streams; precise segment encoding runs locally in MediaEngine.
     if (tools.ffmpeg) args.push("--ffmpeg-location", this.binPath);
     if (speedLimit > 0) args.push("--limit-rate", String(speedLimit));
     args.push("--", validateUrl(url));

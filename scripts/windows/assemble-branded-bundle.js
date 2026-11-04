@@ -28,6 +28,7 @@ const folders = [
   "Setup_Helpers",
   "Documentation",
   "MicrosoftStore",
+  "ThirdPartySource",
   "Checksums",
 ];
 
@@ -69,11 +70,15 @@ function main() {
     path.join(dist, "GetANNY Setup.exe"),
     path.join(stage, "Installers", `GetANNY-${version}-Setup.exe`),
   );
-  const setupMsi = copy(
-    path.join(dist, "GetANNY Setup.msi"),
-    path.join(stage, "Installers", `GetANNY-${version}-Setup.msi`),
-  );
-  const portable = copy(
+  const setupMsi =
+    !fs.existsSync(path.join(dist, "GetANNY Setup.msi")) &&
+    process.argv.includes("--allow-missing-msi")
+      ? null
+      : copy(
+          path.join(dist, "GetANNY Setup.msi"),
+          path.join(stage, "Installers", `GetANNY-${version}-Setup.msi`),
+        );
+  const portable = !fs.existsSync(path.join(dist, "GetANNY Portable.exe")) && process.argv.includes("--allow-missing-portable") ? null : copy(
     path.join(dist, "GetANNY Portable.exe"),
     path.join(stage, "Portable", `GetANNY-${version}-Portable.exe`),
   );
@@ -85,21 +90,40 @@ function main() {
     setupExe,
     path.join(assets, `GetANNY-${version}-Setup.exe`),
   );
-  const releaseSetupMsi = copy(
-    setupMsi,
-    path.join(assets, `GetANNY-${version}-Setup.msi`),
+  const releaseSetupMsi = setupMsi
+    ? copy(setupMsi, path.join(assets, `GetANNY-${version}-Setup.msi`))
+    : null;
+  const releasePortable = portable ? copy(portable, path.join(assets, `GetANNY-${version}-Portable.exe`)) : null;
+  const updaterSetup = copy(
+    path.join(dist, "GetANNY Setup.exe"),
+    path.join(assets, "GetANNY-Setup.exe"),
   );
-  const releasePortable = copy(
-    portable,
-    path.join(assets, `GetANNY-${version}-Portable.exe`),
+  const updaterBlockmap = copy(
+    path.join(dist, "GetANNY Setup.exe.blockmap"),
+    path.join(assets, "GetANNY-Setup.exe.blockmap"),
   );
-  const updaterSetup = copy(path.join(dist, "GetANNY Setup.exe"), path.join(assets, "GetANNY-Setup.exe"));
-  const updaterBlockmap = copy(path.join(dist, "GetANNY Setup.exe.blockmap"), path.join(assets, "GetANNY-Setup.exe.blockmap"));
-  const updaterFeed = copy(path.join(dist, "latest.yml"), path.join(assets, "latest.yml"));
+  const updaterFeed = copy(
+    path.join(dist, "latest.yml"),
+    path.join(assets, "latest.yml"),
+  );
   copy(updaterSetup, path.join(stage, "Installers/GetANNY-Setup.exe"));
-  copy(updaterBlockmap, path.join(stage, "Installers/GetANNY-Setup.exe.blockmap"));
+  copy(
+    updaterBlockmap,
+    path.join(stage, "Installers/GetANNY-Setup.exe.blockmap"),
+  );
   copy(updaterFeed, path.join(stage, "Installers/latest.yml"));
 
+  for (const name of fs.readdirSync(path.join(root, "dist-extension")))
+    if (name.endsWith(`-${version}.zip`))
+      copy(path.join(root, "dist-extension", name), path.join(assets, name));
+  fs.writeFileSync(
+    updaterFeed,
+    fs
+      .readFileSync(updaterFeed, "utf8")
+      .replaceAll("GetANNY%20Setup.exe", "GetANNY-Setup.exe")
+      .replaceAll("GetANNY Setup.exe", "GetANNY-Setup.exe"),
+  );
+  copy(updaterFeed, path.join(stage, "Installers/latest.yml"));
   const extensions = fs
     .readdirSync(assets)
     .filter(
@@ -146,7 +170,7 @@ function main() {
         "",
         "Before submission:",
         "1. Confirm the package identity and publisher match the reserved Partner Center name.",
-        "   Current identity: AcevisualsCo.GetANNY; publisher: CN=C9138F01-73FF-487D-80C4-21BBA2C93B73.",
+        "   Current identity: AcevAppsCo.GetANNYMediaDownloader; publisher: CN=44221EAF-7759-44DD-9DA8-F00E45DF7108.",
         "2. Sign with the certificate associated with the Partner Center publisher.",
         "3. Run Windows App Certification Kit on the signed package and address any findings.",
         "4. Add the Store listing description, screenshots, and other Partner Center metadata.",
@@ -169,8 +193,15 @@ function main() {
     ["docs/PACKAGED_RUNTIME_STATUS.md", "PACKAGED_RUNTIME_STATUS.md"],
     ["LICENSE", "LICENSE"],
   ];
+  copy(path.join(assets, "ThirdPartySource/aria2-1.37.0-source.zip"),
+    path.join(stage, "ThirdPartySource/aria2-1.37.0-source.zip"));
+  for (const name of ["ARIA2-COPYING.txt", "ARIA2-OPENSSL-LICENSE.txt"])
+    copy(path.join(root, "bin", name), path.join(stage, "Documentation", name));
   for (const [from, to] of docs) {
-    const copied = copy(path.join(root, from), path.join(stage, "Documentation", to));
+    const copied = copy(
+      path.join(root, from),
+      path.join(stage, "Documentation", to),
+    );
     const text = fs.readFileSync(copied, "utf8");
     fs.writeFileSync(copied, text.replaceAll("2.2.1", version));
   }
@@ -187,12 +218,15 @@ function main() {
     [
       `# GetANNY ${version}`,
       "",
+      `- MSI included: ${Boolean(setupMsi)}`,
+      "- This packaging step does not establish runtime correctness. User testing is pending.",
       `- Build date: ${new Date().toISOString()}`,
       `- Source commit: \`${commit}\``,
+      "- Source reference: release tag and commit above. Windows executables were built locally before release documentation was finalized.",
       "- Platform: Windows 10/11 x64",
       "- Signing: **unsigned** (no certificate was supplied)",
       "- Repository: https://github.com/p4yy/GetANNY",
-      `- Publication status: https://github.com/p4yy/GetANNY/releases/tag/v${version}`,
+      `- Release page: https://github.com/p4yy/GetANNY/releases/tag/v${version}`,
       "",
       "The EXE, MSI and portable executables are unsigned. Firefox packages are",
       "unsigned development ZIPs; Chromium-family packages require developer-mode",
@@ -220,7 +254,9 @@ function main() {
 
   if (process.argv.includes("--desktop")) {
     if (!fs.existsSync(path.dirname(desktopBundle)))
-      throw new Error(`Desktop folder not found: ${path.dirname(desktopBundle)}`);
+      throw new Error(
+        `Desktop folder not found: ${path.dirname(desktopBundle)}`,
+      );
     fs.cpSync(stage, desktopBundle, { recursive: true, force: true });
     console.log(`Desktop bundle folder: ${desktopBundle}`);
   }
@@ -241,11 +277,20 @@ function main() {
     ],
     { stdio: "inherit" },
   );
+  if (process.argv.includes("--desktop")) {
+    const desktopZip = path.join(
+      process.env.USERPROFILE || "",
+      "Desktop",
+      zipName,
+    );
+    fs.copyFileSync(zipPath, desktopZip);
+    console.log(`Desktop bundle ZIP: ${desktopZip}`);
+  }
 
   const releaseAssets = [
     releaseSetupExe,
-    releaseSetupMsi,
-    releasePortable,
+    ...(releaseSetupMsi ? [releaseSetupMsi] : []),
+    ...(releasePortable ? [releasePortable] : []),
     ...(releaseStorePackage ? [releaseStorePackage] : []),
     updaterSetup,
     updaterBlockmap,

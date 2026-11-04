@@ -31,28 +31,19 @@ GetANNY brings everyday downloads into one desktop workspace. Manage file transf
 
 ## Download GetANNY
 
-<sub>Current stable release: **2.4.1** · Windows 10/11 · 64-bit</sub>
+<sub>Latest published release: **2.4.7** · Windows 10/11 · 64-bit</sub>
 
-**[Open the official GetANNY 2.4.1 release page](https://github.com/p4yy/GetANNY/releases/latest)**
+**[Download the Windows bundle](https://github.com/p4yy/GetANNY/releases/download/v2.4.7/GetANNY-2.4.7-Windows-Bundle.zip)** · [Release notes and files](https://github.com/p4yy/GetANNY/releases/tag/v2.4.7)
 
-Choose one Windows package:
+The bundle contains the Windows Setup EXE, MSI, portable app and browser extension packages. It does not include the Microsoft Store AppX. Check the bundle’s checksum file after extracting it.
 
-| Package                                                                                                      | Best for                                                  |
-| ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| [Setup (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.4.1/GetANNY-2.4.1-Setup.exe)             | Recommended for most users                                |
-| [Windows Installer (.msi)](https://github.com/p4yy/GetANNY/releases/download/v2.4.1/GetANNY-2.4.1-Setup.msi) | Managed or scripted Windows installation                  |
-| [Portable (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.4.1/GetANNY-2.4.1-Portable.exe)       | Running from a writable folder without a standard install |
-| [Microsoft Store AppX](https://github.com/p4yy/GetANNY/releases/download/v2.4.1/GetANNY-2.4.1-Store.appx)    | Unsigned package for Partner Center review                |
-
-Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releases/download/v2.4.1/GetANNY-2.4.1-Windows-Bundle.zip) · [SHA-256 checksums](https://github.com/p4yy/GetANNY/releases/download/v2.4.1/SHA256SUMS.txt).
-
-**Important:** Use only one installer format. The current release binaries are unsigned. Windows may show a SmartScreen warning; review the release notes and verify the downloaded file against the published SHA-256 checksums before running it.
+The Windows binaries are unsigned and may trigger a SmartScreen warning. Review the release notes before installing.
 
 ## Features
 
 - **File transfers:** HTTP and HTTPS downloads with progress, speed, pause, resume, retry and a searchable local history.
-- **Media Studio:** inspect supported media pages, choose available formats, and download provided subtitles or thumbnails.
-- **Torrents:** add magnet links, local `.torrent` files or supported `.torrent` URLs.
+- **Media Studio:** inspect supported media pages, choose available formats, download provided subtitles or thumbnails, and select a time range for video segments.
+- **Torrents:** add magnet links, local `.torrent` files or supported `.torrent` URLs. Torrents with more than two files open a picker for choosing files before download; the Torrents page keeps an Add torrent action available.
 - **Browser handoff:** send supported downloads from Chrome, Chromium, Edge, Brave, Firefox, Vivaldi, Opera or Helium through an authenticated direct loopback bridge. Browser installation and permissions always require your approval; Native Messaging is retained only for secure bootstrap/cold start.
 - **A configurable workspace:** 12 themes, four interface languages (including Arabic RTL), download scheduling, speed limits and tray options.
 
@@ -60,7 +51,7 @@ Media and torrent availability depends on the source and network. GetANNY does n
 
 ## Getting started
 
-1. Download one of the Windows packages from the [official release page](https://github.com/p4yy/GetANNY/releases/latest).
+1. Download and extract the [Windows bundle](https://github.com/p4yy/GetANNY/releases/download/v2.4.7/GetANNY-2.4.7-Windows-Bundle.zip).
 2. Install GetANNY, or run the portable build from a writable folder.
 3. Open GetANNY and choose your download folder and preferences.
 4. To use browser integration, open the in-app browser setup guide and follow the instructions for your browser.

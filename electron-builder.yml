@@ -85,10 +85,10 @@ msi:
 appx:
   artifactName: "GetANNY Store.${ext}"
   applicationId: GetANNY
-  identityName: AcevisualsCo.GetANNY
-  publisher: "CN=C9138F01-73FF-487D-80C4-21BBA2C93B73"
-  publisherDisplayName: Ace visuals Co
-  displayName: GetANNY
+  identityName: AcevAppsCo.GetANNYMediaDownloader
+  publisher: "CN=44221EAF-7759-44DD-9DA8-F00E45DF7108"
+  publisherDisplayName: "Acev Apps Co."
+  displayName: "GetANNY – Media Downloader"
   backgroundColor: "#101216"
   languages: [en-GB]
   capabilities: [runFullTrust]
@@ -109,3 +109,4 @@ npmRebuild: false
 asarUnpack:
   - "node_modules/better-sqlite3/prebuilds/win32-x64.node"
   - "node_modules/node-datachannel/build/Release/node_datachannel.node"
+  - "node_modules/utp-native/**"

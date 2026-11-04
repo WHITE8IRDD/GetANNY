@@ -1,5 +1,41 @@
 # Changelog
 
+# 2.4.6 — Torrent connection and resume reliability
+
+- Restored WebTorrent's native uTP alongside TCP so peers that do not accept TCP connections can still connect.
+- Reuse one torrent client for the app lifetime, keeping DHT state warm across queued downloads and resume.
+- Cache fetched magnet metadata with each queue item and reuse it to skip the second metadata exchange when the download starts.
+- Keep single and two-file torrents on the direct queue path; apply picker file priorities only when the user selects files.
+- Keep torrents waiting for peers active for up to 30 minutes instead of failing at five minutes, while showing the real connected transport and discovery status.
+- Keep downloads uncapped by default; the existing speed limit setting controls the shared torrent client when enabled.
+
+# 2.4.5 — Torrent file selection and aria2 transfers
+
+- Routed torrent transfers through the bundled aria2 engine with BitTorrent TCP, DHT, peer exchange, local discovery, UDP tracker support, verified pieces, and per-download resume data.
+- Added a pre-download file picker for torrents with more than two files, including filtering, file-type icons, selected-size totals, destination free space, and select-all/none controls.
+- Multi-file results keep their folder structure; flat selections are collected into one clean folder. Transfer staging stays unique to each queue item and is removed after successful publishing.
+- Added a permanent Add torrent control on the Torrents page with a reduced-motion-aware, opacity-only halo.
+- Targeted torrent unit checks and the production renderer build passed. No live swarm speed benchmark was run.
+
+# 2.4.4 — Torrent transport and peer discovery
+
+- Restored WebTorrent for desktop torrent jobs and enabled its native uTP transport, DHT, peer exchange, local discovery and UPnP/NAT-PMP mapping.
+- Kept private torrent metadata off supplemental public trackers and retained verified piece storage for pause and resume.
+- Torrent status now reports the active TCP/uTP transport and connected peers separately from tracker-reported swarm counts.
+- Automated tests and real-world speed benchmarks were not run at the user's request.
+
+# 2.4.3 — Native torrent transfer engine
+
+- Replaced the stalled WebTorrent transfer path with bundled aria2 for BitTorrent TCP, DHT, peer exchange, local peer discovery, and tracker connections.
+- Added authenticated loopback JSON-RPC, persisted partial downloads for resume, verified torrent piece completion, and packaged the client licenses and source archive.
+- Torrent speed still depends on reachable peers, seed capacity, and network conditions; no speed benchmark was run.
+
+# 2.4.2 — Torrent peer coverage and diagnostics
+
+- Enabled packaged native WebRTC tracker connections alongside the existing BitTorrent TCP/uTP, DHT, and peer-exchange paths.
+- Added tracker swarm counts and peer-discovery source details to torrent status.
+- Automated tests were not run at the user's request; real-world torrent speed has not been benchmarked.
+
 # 2.4.1 — Faster, safer video segments
 
 - Use fast keyframe-aligned stream-copy cuts instead of forced keyframe re-encoding for selected video segments.

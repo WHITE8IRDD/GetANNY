@@ -59,6 +59,7 @@ async function createServices({
   await db.initialize();
   const downloadsRepo = new DownloadsRepo(db);
   const settingsRepo = new SettingsRepo(db);
+  let manager, wsServer, torrentClient;
   const settings = new SettingsService({
     repo: settingsRepo,
     downloadPath,
@@ -66,6 +67,8 @@ async function createServices({
       await onSettingChange(key, value);
       if (key === "browserIntegrationEnabled") wsServer?.setEnabled(value);
       if (key === "theme") wsServer?.setTheme(themePayload(value));
+      if (key === "speedLimit" && torrentClient)
+        torrentClient.throttleDownload(value > 0 ? value : -1);
       manager?.updateSettings({ ...settings.getAll(), [key]: value });
       events.emit("event", "settings:changed", {
         ...settings.getAll(),
@@ -85,7 +88,13 @@ async function createServices({
     nativeImage,
     getFileIcon,
   });
-  let manager, wsServer;
+  const { default: WebTorrent } = await import("webtorrent");
+  torrentClient = new WebTorrent({
+    maxConns: 200,
+    utp: true,
+    downloadLimit: settings.get("speedLimit") || -1,
+    uploadLimit: 512 * 1024,
+  });
   manager = new DownloadManager({
     settings: settings.getAll(),
     downloadsRepo,
@@ -96,6 +105,7 @@ async function createServices({
       if (item.kind === "torrent")
         return new TorrentEngine({
           ...options,
+          sharedTorrentClient: torrentClient,
           getTrackers: () => trackerList.getTrackers(),
         });
       return null;
@@ -428,6 +438,7 @@ async function createServices({
     downloadsRepo,
     settings,
     settingsRepo,
+    trackerList,
     mediaDetector,
     previews,
     wsServer,
@@ -458,6 +469,8 @@ async function createServices({
       );
       await wsServer.close();
       await manager.shutdown();
+      if (torrentClient && !torrentClient.destroyed)
+        await new Promise((resolve) => torrentClient.destroy(resolve));
       trackerList.close();
       db.close();
     },

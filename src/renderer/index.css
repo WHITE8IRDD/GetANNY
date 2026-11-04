@@ -5852,3 +5852,302 @@ html.theme-transition *::after {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* Torrent controls use a steady footprint; the callout only fades its ring. */
+.torrent-add-action {
+  position: relative;
+  isolation: isolate;
+}
+.torrent-add-action::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border: 1px solid color-mix(in srgb, var(--accent) 58%, transparent);
+  border-radius: inherit;
+  opacity: 0;
+  animation: torrent-add-halo 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes torrent-add-halo {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.torrent-picker-body {
+  padding-top: 16px;
+}
+.torrent-picker-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 0 0 13px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.torrent-picker-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.torrent-picker-title > svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+}
+.torrent-picker-title > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.torrent-picker-title strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.torrent-picker-title small,
+.torrent-picker-hash,
+.torrent-free-space {
+  color: var(--muted);
+  font-size: 10px;
+}
+.torrent-picker-hash {
+  max-width: 34%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, monospace);
+}
+.torrent-picker-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.55fr);
+  gap: 16px;
+  min-height: 330px;
+  padding-top: 14px;
+}
+.torrent-picker-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--panel) 76%, var(--sidebar));
+}
+.torrent-picker-settings .field {
+  margin: 0;
+}
+.torrent-picker-settings .field label {
+  font-size: 10px;
+}
+.torrent-picker-settings .input-group {
+  gap: 6px;
+}
+.torrent-picker-settings .input-group input {
+  min-width: 0;
+  font-size: 10px;
+}
+.torrent-picker-settings .input-group > button {
+  min-width: 54px;
+  padding-inline: 8px;
+  font-size: 10px;
+}
+.torrent-free-space {
+  min-height: 12px;
+  margin-top: -8px;
+}
+.torrent-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.torrent-option input,
+.torrent-file-row input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+}
+.torrent-size-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 10px;
+  color: var(--muted);
+}
+.torrent-size-summary strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.torrent-comment {
+  max-height: 42px;
+  overflow: auto;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.torrent-file-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.torrent-file-toolbar {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.torrent-file-toolbar .button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  gap: 5px;
+  padding: 5px 7px;
+  font-size: 10px;
+}
+.torrent-file-search {
+  min-width: 70px;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  color: var(--muted);
+}
+.torrent-file-search svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+.torrent-file-search input {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 10px;
+}
+.torrent-file-heading,
+.torrent-file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 66px;
+  align-items: center;
+  gap: 9px;
+}
+.torrent-file-heading {
+  padding: 7px 11px 7px 34px;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+.torrent-file-heading span:last-child,
+.torrent-file-size {
+  text-align: right;
+}
+.torrent-file-list {
+  min-height: 0;
+  flex: 1 1 auto;
+  max-height: 350px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.torrent-file-row {
+  min-height: 34px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 34px;
+  grid-template-columns: 14px minmax(0, 1fr) 66px;
+  padding: 5px 11px;
+  border-top: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  cursor: pointer;
+}
+.torrent-file-row:hover,
+.torrent-file-row.selected {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.torrent-file-name {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--secondary);
+  font-size: 10px;
+}
+.torrent-file-name svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+.torrent-file-name span {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.torrent-file-size {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.torrent-no-files {
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 11px;
+}
+.torrent-picked-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 10px;
+}
+.torrent-picked-count svg {
+  width: 13px;
+  height: 13px;
+  color: var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .torrent-add-action::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+@media (max-width: 760px) {
+  .torrent-picker-layout {
+    grid-template-columns: 1fr;
+  }
+  .torrent-picker-settings {
+    order: 1;
+  }
+  .torrent-file-pane {
+    order: 0;
+  }
+  .torrent-picker-hash {
+    display: none;
+  }
+}

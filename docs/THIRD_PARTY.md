@@ -28,6 +28,10 @@ GetANNY source: Apache License 2.0 (root LICENSE). JavaScript dependencies retai
 
 ## Other components
 
+## aria2
+
+The Windows bundle includes aria2 1.37.0. Its license notices are supplied as `ARIA2-COPYING.txt` and `ARIA2-OPENSSL-LICENSE.txt`; the corresponding source archive is included at `ThirdPartySource/aria2-1.37.0-source.zip`. Upstream: https://github.com/aria2/aria2.
+
 Electron (MIT / Chromium third-party notices), React (MIT), better-sqlite3 (MIT) / SQLite (public domain), WebTorrent and related modules (MIT / package licenses), ws (MIT), React Icons (individual icon licenses, see its package), content-disposition (MIT), Zustand (MIT), and build/test tools retain their upstream licenses. Electron's platform license/notices files are shipped by electron-builder.
 
 The Chromium manifest key is a public key used solely for a stable extension ID. No private signing key, store credential, browser profile or per-user pairing secret is committed.

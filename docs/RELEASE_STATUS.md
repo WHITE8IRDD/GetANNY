@@ -1,3 +1,11 @@
+# GetANNY 2.4.7 release status
+
+- Windows x64 Setup EXE, MSI, portable EXE and unsigned Store AppX were built locally.
+- All eight browser extension packages are included.
+- Automated tests, sample exports and performance benchmarks were not run for this release. Runtime testing remains pending.
+- Windows binaries and Firefox development extensions are unsigned.
+- The Store AppX has not been submitted to Microsoft Store or certified.
+
 # GetANNY 2.4.1 release status
 
 - Source version: 2.4.1, based on the 2.4.0 release with a video-segment performance/output fix.

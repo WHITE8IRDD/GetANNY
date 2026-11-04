@@ -46,6 +46,7 @@ class DownloadManager extends EventEmitter {
     });
     this.items = new Map();
     this.running = new Map();
+    this.pausedEngines = new Map();
     this.queue = [];
     this.retryTimers = new Map();
     this.pendingProgress = new Map();
@@ -159,18 +160,61 @@ class DownloadManager extends EventEmitter {
         ([key]) => !/cookie|session|authorization|credential/i.test(key),
       ),
     );
+    const id = randomUUID();
+    let torrentMetadataPath;
+    if (input.kind === "torrent" && input.torrentFileBase64) {
+      if (
+        typeof input.torrentFileBase64 !== "string" ||
+        input.torrentFileBase64.length > 24 * 1024 * 1024 ||
+        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
+          input.torrentFileBase64,
+        )
+      )
+        throw new Error(
+          "Torrent metadata is invalid or exceeds the 16 MB limit.",
+        );
+      const data = Buffer.from(input.torrentFileBase64, "base64");
+      if (!data.length || data.length > 16 * 1024 * 1024)
+        throw new Error(
+          "Torrent metadata is invalid or exceeds the 16 MB limit.",
+        );
+      const parseTorrent = (await import("parse-torrent")).default;
+      const parsed = await parseTorrent(data);
+      if (
+        input.infoHash &&
+        parsed.infoHash?.toLowerCase() !== String(input.infoHash).toLowerCase()
+      )
+        throw new Error(
+          "Torrent metadata does not match the selected torrent.",
+        );
+      const workPath = this.tempPath
+        ? path.join(this.tempPath, id)
+        : path.join(savePath, ".getanny-torrent", id);
+      await fs.mkdir(workPath, { recursive: true });
+      torrentMetadataPath = path.join(workPath, "source.torrent");
+      await fs.writeFile(torrentMetadataPath, data, { flag: "wx" });
+    }
     const item = {
-      id: randomUUID(),
+      id,
       url,
       filename: input.filename
         ? sanitizeFilename(input.filename)
         : input.kind === "torrent"
-          ? "Waiting for torrent metadata"
+          ? input.torrentName
+            ? sanitizeFilename(input.torrentName)
+            : "Waiting for torrent metadata"
           : getFilenameFromURL(url) || "download",
       filenameExplicit: !!input.filename,
       savePath: input.savePath || savePath,
       destinationExplicit: !!input.savePath,
-      status: this.settings.autoStartDownloads === false ? "paused" : "queued",
+      status:
+        input.startImmediately === undefined
+          ? this.settings.autoStartDownloads === false
+            ? "paused"
+            : "queued"
+          : input.startImmediately
+            ? "queued"
+            : "paused",
       totalSize: 0,
       downloadedSize: 0,
       speed: 0,
@@ -178,6 +222,26 @@ class DownloadManager extends EventEmitter {
       attempt: 0,
       createdAt: new Date().toISOString(),
       kind: input.kind || "file",
+      ...(input.kind === "torrent"
+        ? {
+            selectedFiles: Array.isArray(input.selectedFiles)
+              ? input.selectedFiles.filter(
+                  (index) => Number.isInteger(index) && index > 0,
+                )
+              : undefined,
+            prioritizeFirstLast: input.prioritizeFirstLast === true,
+            torrentName: input.torrentName || undefined,
+            infoHash: input.infoHash || undefined,
+            torrentMetadataPath,
+            torrentTrackers: Array.isArray(input.torrentTrackers)
+              ? input.torrentTrackers.filter(
+                  (tracker) =>
+                    typeof tracker === "string" &&
+                    /^(?:udp|https?|wss?):\/\//i.test(tracker),
+                )
+              : undefined,
+          }
+        : {}),
       headers: safeHeaders,
       ...(Object.keys(sessionHeaders).length
         ? { sessionHeaders, sessionRequired: true }
@@ -325,8 +389,10 @@ class DownloadManager extends EventEmitter {
       const id = this.queue.shift();
       const item = this.items.get(id);
       if (!item || item.status !== "queued" || this.running.has(id)) continue;
-      const engine = this.createEngine(item);
+      const engine = this.pausedEngines.get(id) || this.createEngine(item);
+      this.pausedEngines.delete(id);
       this.running.set(id, engine);
+      if (engine.keepTorrentPaused) engine.resume();
       Promise.resolve(engine.start())
         .catch((error) => {
           item.status = "failed";
@@ -370,13 +436,14 @@ class DownloadManager extends EventEmitter {
     clearTimeout(this.retryTimers.get(id));
     this.retryTimers.delete(id);
   }
-  enqueue(item) {
+  enqueue(item, front = false) {
     this.clearRetry(item.id);
     item.status = "queued";
     item.error = null;
     item.retryAt = null;
     item.speed = 0;
-    if (!this.queue.includes(item.id)) this.queue.push(item.id);
+    if (!this.queue.includes(item.id))
+      front ? this.queue.unshift(item.id) : this.queue.push(item.id);
     this.persist(item);
     this.snapshot();
     this.pump();
@@ -393,6 +460,7 @@ class DownloadManager extends EventEmitter {
       // later finally callback and lose the newly queued job.
       if (this.running.get(id) === engine) {
         this.running.delete(id);
+        if (engine.keepTorrentPaused) this.pausedEngines.set(id, engine);
         this.pump();
       }
     } else if (["queued", "retrying"].includes(item.status)) {
@@ -418,7 +486,7 @@ class DownloadManager extends EventEmitter {
     )
       return false;
     item.attempt = 0;
-    return this.enqueue(item);
+    return this.enqueue(item, this.pausedEngines.has(id));
   }
   retry(id) {
     return this.resume(id);
@@ -428,9 +496,11 @@ class DownloadManager extends EventEmitter {
     if (["completed", "cancelled"].includes(item.status)) return false;
     this.clearRetry(id);
     this.queue = this.queue.filter((value) => value !== id);
-    const engine = this.running.get(id);
-    if (engine) await engine.cancel();
-    else {
+    const engine = this.running.get(id) || this.pausedEngines.get(id);
+    if (engine) {
+      await engine.cancel();
+      this.pausedEngines.delete(id);
+    } else {
       item.status = "cancelled";
       item.speed = 0;
       item.eta = null;
@@ -569,9 +639,18 @@ class DownloadManager extends EventEmitter {
     this.scheduleTimer = null;
     for (const timer of this.retryTimers.values()) clearTimeout(timer);
     this.retryTimers.clear();
+    const engines = new Set([
+      ...this.running.values(),
+      ...this.pausedEngines.values(),
+    ]);
     await Promise.all(
-      [...this.running.values()].map((engine) => engine.pause()),
+      [...engines].map((engine) =>
+        typeof engine.shutdown === "function"
+          ? engine.shutdown()
+          : engine.pause(),
+      ),
     );
+    this.pausedEngines.clear();
     for (const item of this.items.values())
       if (["queued", "retrying"].includes(item.status)) {
         // Preserve scheduled queue entries across clean restarts. Retry timers

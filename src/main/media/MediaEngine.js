@@ -43,7 +43,9 @@ class MediaEngine extends EventEmitter {
         );
       this.setStatus(
         media.segment ? "downloading" : "connecting",
-        media.segment ? { phase: "Finding a nearby keyframe" } : {},
+        media.segment
+          ? { phase: "Downloading source for precise trimming" }
+          : {},
       );
       await fs.mkdir(this.savePath, { recursive: true });
       // yt-dlp fragments and .part files stay in the private work folder. Only
@@ -122,7 +124,7 @@ class MediaEngine extends EventEmitter {
               phase: finalizing
                 ? "Finalizing media"
                 : media.segment
-                  ? "Downloading selected segment"
+                  ? "Downloading source for precise trimming"
                   : media.mergeAudio && tracks.length < 2
                     ? "Downloading video; audio follows"
                     : "Downloading media",
@@ -141,6 +143,32 @@ class MediaEngine extends EventEmitter {
         !path.basename(filePath).startsWith(stem)
       )
         throw new Error("yt-dlp reported an unexpected output location.");
+      if (media.segment) {
+        const { trimVideo } = require("./VideoTrimmer");
+        this.setStatus("processing", {
+          phase: "Encoding precise video segment",
+          eta: null,
+        });
+        filePath = await trimVideo({
+          source: filePath,
+          segment: media.segment,
+          binPath: this.wrapper.binPath,
+          signal: this.controller.signal,
+          onProgress: (seconds) =>
+            this.emit("progress", this.id, {
+              speed: 0,
+              eta: null,
+              phase:
+                "Encoding segment: " +
+                Math.min(
+                  seconds,
+                  media.segment.end - media.segment.start,
+                ).toFixed(1) +
+                " seconds",
+            }),
+        });
+        this.controller.signal.throwIfAborted();
+      }
       const stat = await fs.stat(filePath);
       if (!stat.isFile() || stat.size === 0 || /\.(part|ytdl)$/.test(filePath))
         throw new Error("The media output is missing or incomplete.");

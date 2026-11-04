@@ -2,7 +2,11 @@ node_modules/
 dist/
 dist-renderer/
 dist-extension/
-release-assets/
+!release-assets/
+release-assets/*
+!release-assets/ThirdPartySource/
+release-assets/ThirdPartySource/*
+!release-assets/ThirdPartySource/aria2-1.37.0-source.zip
 .arena/
 .cache/
 .playwright/
@@ -25,6 +29,9 @@ coverage/
 !.env.example
 bin/*
 !bin/README.md
+!bin/aria2c.exe
+!bin/ARIA2-COPYING.txt
+!bin/ARIA2-OPENSSL-LICENSE.txt
 .DS_Store
 Thumbs.db
 

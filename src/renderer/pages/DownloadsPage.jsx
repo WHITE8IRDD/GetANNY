@@ -517,14 +517,44 @@ function DownloadRow({
               </span>
               <span>
                 {item.kind === "torrent"
-                  ? `${t("downloads.peers", { count: item.peers || 0 })} · ${t("downloads.seeds", { count: item.seeds || 0 })} · ${t("downloads.trackers", { count: item.connectedTrackers || 0, total: item.trackerCount || 0 })}`
+                  ? `${t("downloads.peers", { count: item.peers || 0 })} · ${t("downloads.seeds", { count: item.seeds || 0 })} · ${item.torrentTransport || "TCP"}`
                   : ""}
               </span>
+              {item.kind === "torrent" &&
+                (item.trackerSeeds > 0 || item.trackerPeers > 0) && (
+                  <span>
+                    {t("downloads.trackerSwarm", {
+                      seeds: item.trackerSeeds || 0,
+                      peers: item.trackerPeers || 0,
+                    })}
+                  </span>
+                )}
               {item.kind === "torrent" && item.trackerWarning && (
                 <span className="torrent-tracker-warning" role="status">
                   {t("downloads.trackerWarning")}
                 </span>
               )}
+              {item.kind === "torrent" && item.peerConnectionWarning && (
+                <span className="torrent-tracker-warning" role="status">
+                  {t("downloads.peerConnectionWarning")}
+                </span>
+              )}
+              {item.kind === "torrent" && item.trackerEmptyWarning && (
+                <span className="torrent-tracker-warning" role="status">
+                  {t("downloads.trackerEmptyWarning")}
+                </span>
+              )}
+              {item.kind === "torrent" &&
+                item.peers === 0 &&
+                item.emptyPeerSources?.length > 0 && (
+                  <span className="torrent-tracker-warning" role="status">
+                    {t("downloads.noPeersFromSources", {
+                      sources: item.emptyPeerSources
+                        .map((source) => t(`downloads.peerSource.${source}`))
+                        .join(", "),
+                    })}
+                  </span>
+                )}
             </>
           ) : item.status === "processing" ? (
             <span>{item.phase || t("downloads.verifying")}</span>
@@ -856,7 +886,18 @@ export default function DownloadsPage({ filter, active: visible = true }) {
   if (!visible) return <div className="page downloads-page" hidden />;
   return (
     <div className="page downloads-page">
-      <PageHeader eyebrow={t("downloads.eyebrow")} title={title} />
+      <PageHeader eyebrow={t("downloads.eyebrow")} title={title}>
+        {filter === "torrent" && (
+          <Button
+            className="torrent-add-action"
+            variant="primary"
+            icon={LuMagnet}
+            onClick={() => useUIStore.getState().setAddModal({ torrent: true })}
+          >
+            {t("downloads.addTorrent")}
+          </Button>
+        )}
+      </PageHeader>
       <div className={`library-panel ${rows.length ? "" : "is-empty"}`}>
         {showLibraryToolbar && (
           <div className="library-toolbar">

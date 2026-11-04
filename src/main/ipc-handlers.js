@@ -1,6 +1,7 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { validateUrl } = require("./engine/utils");
+const { inspectTorrent } = require("./engine/TorrentMetadata");
 
 function createHandlers({ services: s, desktop }) {
   const { manager, settings, mediaDetector } = s;
@@ -66,6 +67,17 @@ function createHandlers({ services: s, desktop }) {
     }),
     "download:add": (options) => manager.addDownload(options),
     "download:add-torrent": (options) => manager.addTorrent(options),
+    "torrent:inspect": ({ torrent }) =>
+      inspectTorrent(torrent, {
+        trackers: s.trackerList?.getTrackers() || [],
+      }),
+    "storage:free-space": async (folder) => {
+      if (!desktop) return null;
+      if (typeof folder !== "string" || !path.isAbsolute(folder))
+        throw new Error("Choose a valid destination folder.");
+      const stats = await fs.statfs(folder);
+      return Number(stats.bavail) * Number(stats.bsize);
+    },
     "download:pause": (id) => manager.pause(id),
     "download:resume": (id) => manager.resume(id),
     "download:cancel": (id) => manager.cancel(id),

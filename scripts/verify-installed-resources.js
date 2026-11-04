@@ -21,7 +21,9 @@ module.exports = async (context) => {
       !/^owner:\s*p4yy\s*$/m.test(updaterConfig) ||
       !/^repo:\s*GetANNY\s*$/m.test(updaterConfig))
   )
-    throw new Error("Packaged updater configuration does not point to the public GetANNY release feed");
+    throw new Error(
+      "Packaged updater configuration does not point to the public GetANNY release feed",
+    );
   const asar = require("@electron/asar");
   for (const file of [path.join("dist-renderer", "fonts", "OFL-Cairo.txt")]) {
     try {
@@ -66,6 +68,7 @@ module.exports = async (context) => {
     "extension/firefox/manifest.json",
     "app.asar.unpacked/node_modules/better-sqlite3/prebuilds/win32-x64.node",
     "app.asar.unpacked/node_modules/node-datachannel/build/Release/node_datachannel.node",
+    "app.asar.unpacked/node_modules/utp-native/prebuilds/win32-x64/node.napi.node",
   ])
     await fs.access(path.join(resources, file)).catch(() => {
       throw new Error(`Packaged resource missing: ${file}`);

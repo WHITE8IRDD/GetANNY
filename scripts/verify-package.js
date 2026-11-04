@@ -22,6 +22,7 @@ module.exports = async (context) => {
       "bin/GetANNY.NativeHost.exe",
       "bin/FFmpeg-LICENSE.txt",
       "bin/FFmpeg-SOURCE.txt",
+      "node_modules/utp-native/prebuilds/win32-x64/node.napi.node",
     );
   else if (platform === "linux")
     required.push("bin/yt-dlp", "bin/ffmpeg", "bin/ffprobe");

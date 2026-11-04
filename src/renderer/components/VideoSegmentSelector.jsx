@@ -4,13 +4,21 @@ import { duration } from "../utils/format";
 import { useI18n } from "../i18n/useI18n";
 
 function formatTime(value, showHours = false) {
-  const whole = Math.max(0, Math.floor(value));
+  const millis = Math.max(0, Math.round(value * 1000));
+  const whole = Math.floor(millis / 1000);
+  const fraction =
+    millis % 1000
+      ? "." +
+        String(millis % 1000)
+          .padStart(3, "0")
+          .replace(/0+$/, "")
+      : "";
   const hours = Math.floor(whole / 3600);
   const minutes = Math.floor((whole % 3600) / 60);
   const seconds = whole % 60;
   if (showHours || hours)
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  return `${String(Math.floor(whole / 60)).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}${fraction}`;
+  return `${String(Math.floor(whole / 60)).padStart(2, "0")}:${String(seconds).padStart(2, "0")}${fraction}`;
 }
 
 function parseTime(raw) {
@@ -18,11 +26,16 @@ function parseTime(raw) {
   if (
     parts.length < 2 ||
     parts.length > 3 ||
-    parts.some((part) => !/^\d+$/.test(part))
+    parts.some(
+      (part, index) =>
+        !(index === parts.length - 1 ? /^\d+(?:\.\d{1,3})?$/ : /^\d+$/).test(
+          part,
+        ),
+    )
   )
     return null;
   const numbers = parts.map(Number);
-  if (numbers.slice(1).some((part) => part > 59)) return null;
+  if (numbers.slice(1).some((part) => part >= 60)) return null;
   return numbers.length === 2
     ? numbers[0] * 60 + numbers[1]
     : numbers[0] * 3600 + numbers[1] * 60 + numbers[2];
@@ -42,7 +55,7 @@ export default function VideoSegmentSelector({
   onChange,
 }) {
   const { t } = useI18n();
-  const total = Math.floor(totalDuration);
+  const total = totalDuration;
   const range = normalize(value, total);
   const track = useRef(null);
   const drag = useRef(null);
@@ -73,8 +86,8 @@ export default function VideoSegmentSelector({
 
   const emitRange = (next) => {
     const normalized = {
-      start: Math.round(next.start),
-      end: Math.round(next.end),
+      start: Math.round(next.start * 1000) / 1000,
+      end: Math.round(next.end * 1000) / 1000,
     };
     if (normalized.start <= 0 && normalized.end >= total) onChange(null);
     else onChange(normalized);
